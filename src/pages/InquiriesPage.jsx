@@ -5,6 +5,14 @@ import { StatusBadge } from '../components/Badge.jsx'
 
 const CONTENT_TYPE_OPTIONS = ['Carousel', 'Reel', 'Story', 'Post', 'Jiné']
 
+const PROFILE_PLATFORMS = [
+  { key: 'instagram', label: 'Instagram', placeholder: 'https://instagram.com/profil', color: 'text-pink-600' },
+  { key: 'tiktok',    label: 'TikTok',    placeholder: 'https://tiktok.com/@profil',  color: 'text-gray-900' },
+  { key: 'facebook',  label: 'Facebook',  placeholder: 'https://facebook.com/stranka', color: 'text-blue-600' },
+  { key: 'youtube',   label: 'YouTube',   placeholder: 'https://youtube.com/@kanal',   color: 'text-red-600' },
+  { key: 'web',       label: 'Web',       placeholder: 'https://www.firma.cz',         color: 'text-gray-600' },
+]
+
 function formatDate(isoString) {
   if (!isoString) return ''
   return new Date(isoString).toLocaleDateString('cs-CZ', {
@@ -23,6 +31,7 @@ function AddInquiryModal({ isOpen, onClose }) {
     contentTypes: [],
     deadline: '',
     source: '',
+    profileLinks: { instagram: '', tiktok: '', facebook: '', youtube: '', web: '' },
   })
   const [errors, setErrors] = useState({})
 
@@ -51,13 +60,13 @@ function AddInquiryModal({ isOpen, onClose }) {
     const errs = validate()
     if (Object.keys(errs).length > 0) { setErrors(errs); return }
     dispatch({ type: 'ADD_INQUIRY', payload: form })
-    setForm({ clientName: '', contact: '', description: '', budget: '', contentTypes: [], deadline: '', source: '' })
+    setForm({ clientName: '', contact: '', description: '', budget: '', contentTypes: [], deadline: '', source: '', profileLinks: { instagram: '', tiktok: '', facebook: '', youtube: '', web: '' } })
     setErrors({})
     onClose()
   }
 
   const handleClose = () => {
-    setForm({ clientName: '', contact: '', description: '', budget: '', contentTypes: [], deadline: '', source: '' })
+    setForm({ clientName: '', contact: '', description: '', budget: '', contentTypes: [], deadline: '', source: '', profileLinks: { instagram: '', tiktok: '', facebook: '', youtube: '', web: '' } })
     setErrors({})
     onClose()
   }
@@ -148,6 +157,23 @@ function AddInquiryModal({ isOpen, onClose }) {
             value={form.source}
             onChange={handleChange('source')}
           />
+        </div>
+
+        <div className="form-group">
+          <label className="label">Profily / Weby</label>
+          <div className="space-y-2 mt-1">
+            {PROFILE_PLATFORMS.map(p => (
+              <div key={p.key} className="flex items-center gap-2">
+                <span className={`text-xs font-semibold w-20 flex-shrink-0 ${p.color}`}>{p.label}</span>
+                <input
+                  className="input text-sm"
+                  placeholder={p.placeholder}
+                  value={form.profileLinks[p.key]}
+                  onChange={e => setForm(f => ({ ...f, profileLinks: { ...f.profileLinks, [p.key]: e.target.value } }))}
+                />
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="flex gap-3 pt-2">
@@ -297,6 +323,28 @@ function InquiryCard({ inquiry }) {
             <div>
               <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Popis</p>
               <p className="text-sm text-gray-700 whitespace-pre-wrap">{inquiry.description}</p>
+            </div>
+          )}
+
+          {inquiry.profileLinks && Object.values(inquiry.profileLinks).some(v => v) && (
+            <div>
+              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Profily / Weby</p>
+              <div className="flex flex-wrap gap-2">
+                {PROFILE_PLATFORMS.filter(p => inquiry.profileLinks[p.key]).map(p => (
+                  <a
+                    key={p.key}
+                    href={inquiry.profileLinks[p.key]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-colors ${p.color}`}
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    {p.label}
+                  </a>
+                ))}
+              </div>
             </div>
           )}
 

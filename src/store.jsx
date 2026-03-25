@@ -38,6 +38,7 @@ function normalizeInquiry(i) {
     ...i,
     clientName: i.client_name,
     contentTypes: i.content_types || [],
+    profileLinks: i.profile_links || {},
     createdAt: i.created_at,
   }
 }
@@ -325,6 +326,7 @@ export function AppProvider({ children }) {
           content_types: action.payload.contentTypes || [],
           deadline: action.payload.deadline || '',
           source: action.payload.source || '',
+          profile_links: action.payload.profileLinks || {},
           votes: { member1: null, member2: null },
           notes: '',
           status: 'pending',
@@ -334,6 +336,7 @@ export function AppProvider({ children }) {
           ...row,
           clientName: row.client_name,
           contentTypes: row.content_types,
+          profileLinks: row.profile_links,
           createdAt: row.created_at,
         }
         setState(s => ({ ...s, inquiries: [frontend, ...s.inquiries] }))
