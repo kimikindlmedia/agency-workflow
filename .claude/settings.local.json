@@ -5,7 +5,12 @@
       "Bash(brew install:*)",
       "Bash(npm install:*)",
       "Read(//Users/patrikkindl/.nvm/**)",
-      "Read(//Users/patrikkindl/.volta/**)"
+      "Read(//Users/patrikkindl/.volta/**)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git remote:*)",
+      "Bash(git branch:*)"
     ]
   }
 }
