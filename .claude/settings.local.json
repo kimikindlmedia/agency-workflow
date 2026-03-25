@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx skills:*)",
+      "Bash(brew install:*)",
+      "Bash(npm install:*)",
+      "Read(//Users/patrikkindl/.nvm/**)",
+      "Read(//Users/patrikkindl/.volta/**)"
+    ]
+  }
+}
