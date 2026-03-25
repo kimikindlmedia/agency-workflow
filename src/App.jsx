@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { AppProvider } from './store.jsx'
+import { AppProvider, useApp } from './store.jsx'
 import ClientsPage from './pages/ClientsPage.jsx'
 import ClientDetailPage from './pages/ClientDetailPage.jsx'
 import InquiriesPage from './pages/InquiriesPage.jsx'
@@ -47,8 +47,37 @@ function CogIcon({ className }) {
 }
 
 function AppContent() {
+  const { state } = useApp()
   const [activeTab, setActiveTab] = useState('clients')
   const [selectedClientId, setSelectedClientId] = useState(null)
+
+  if (state.loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-500 text-sm">Načítám data…</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (state.error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="text-center max-w-sm">
+          <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Chyba připojení</h2>
+          <p className="text-sm text-gray-500 mb-4">{state.error}</p>
+          <button onClick={() => window.location.reload()} className="btn-primary">Zkusit znovu</button>
+        </div>
+      </div>
+    )
+  }
 
   const handleSelectClient = (id) => {
     setSelectedClientId(id)
