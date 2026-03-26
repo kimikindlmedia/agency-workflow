@@ -3,6 +3,7 @@ import { useApp } from '../store.jsx'
 import Modal from '../components/Modal.jsx'
 import { StatusBadge, ContentTypeBadge } from '../components/Badge.jsx'
 import { Avatar, getInitials } from './ClientsPage.jsx'
+import ClientInspirationSection from '../components/ClientInspiration.jsx'
 
 const AVATAR_COLORS = [
   '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316',
@@ -417,6 +418,7 @@ function EditClientModal({ isOpen, onClose, client }) {
     email: client.email,
     phone: client.phone,
     color: client.color,
+    driveUrl: client.driveUrl || '',
   })
   const [errors, setErrors] = useState({})
 
@@ -428,7 +430,7 @@ function EditClientModal({ isOpen, onClose, client }) {
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!form.name.trim()) { setErrors({ name: 'Jméno je povinné' }); return }
-    dispatch({ type: 'UPDATE_CLIENT', payload: { id: client.id, ...form } })
+    dispatch({ type: 'UPDATE_CLIENT', payload: { id: client.id, ...form, driveUrl: form.driveUrl } })
     onClose()
   }
 
@@ -455,6 +457,10 @@ function EditClientModal({ isOpen, onClose, client }) {
         <div className="form-group">
           <label className="label">Telefon</label>
           <input className="input" value={form.phone} onChange={handleChange('phone')} />
+        </div>
+        <div className="form-group">
+          <label className="label">Google Drive</label>
+          <input className="input" type="url" placeholder="https://drive.google.com/..." value={form.driveUrl} onChange={handleChange('driveUrl')} />
         </div>
         <div className="form-group">
           <label className="label">Barva avatara</label>
@@ -731,6 +737,7 @@ export default function ClientDetailPage({ clientId, onBack }) {
   const [showEditClient, setShowEditClient] = useState(false)
   const [confirmDeleteClient, setConfirmDeleteClient] = useState(false)
   const [statusFilter, setStatusFilter] = useState('all')
+  const [activeSection, setActiveSection] = useState('tasks')
 
   if (!client) {
     return (
@@ -802,6 +809,14 @@ export default function ClientDetailPage({ clientId, onBack }) {
                   {client.phone}
                 </a>
               )}
+              {client.driveUrl && (
+                <a href={client.driveUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-green-600 transition-colors">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  </svg>
+                  Google Drive
+                </a>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -829,66 +844,93 @@ export default function ClientDetailPage({ clientId, onBack }) {
         </div>
       </div>
 
-      {/* Tasks section */}
+      {/* Section tabs */}
       <div>
-        <div className="flex items-center justify-between mb-4 gap-4">
-          <h2 className="text-lg font-bold text-gray-900">Požadavky / Úkoly</h2>
-          <button onClick={() => setShowAddTask(true)} className="btn-primary text-sm">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Přidat požadavek
-          </button>
+        <div className="flex gap-1 border-b border-gray-200 mb-4">
+          {[
+            { key: 'tasks', label: 'Požadavky / Úkoly' },
+            { key: 'inspiration', label: 'Inspirace & Reference' },
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveSection(tab.key)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeSection === tab.key
+                  ? 'border-indigo-600 text-indigo-700'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        {/* Status filter tabs */}
-        {client.tasks.length > 0 && (
-          <div className="flex gap-1 overflow-x-auto pb-1 mb-4">
-            {[
-              { key: 'all', label: 'Vše' },
-              { key: 'new', label: 'Nové' },
-              { key: 'in_progress', label: 'Probíhá' },
-              { key: 'review', label: 'Ke kontrole' },
-              { key: 'done', label: 'Hotovo' },
-            ].map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setStatusFilter(tab.key)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors flex items-center gap-1.5 ${
-                  statusFilter === tab.key
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                {tab.label}
-                <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                  statusFilter === tab.key ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-500'
-                }`}>
-                  {taskCounts[tab.key]}
-                </span>
+        {activeSection === 'tasks' && (
+          <>
+            <div className="flex items-center justify-between mb-4 gap-4">
+              <h2 className="text-lg font-bold text-gray-900">Požadavky / Úkoly</h2>
+              <button onClick={() => setShowAddTask(true)} className="btn-primary text-sm">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Přidat požadavek
               </button>
-            ))}
-          </div>
+            </div>
+
+            {/* Status filter tabs */}
+            {client.tasks.length > 0 && (
+              <div className="flex gap-1 overflow-x-auto pb-1 mb-4">
+                {[
+                  { key: 'all', label: 'Vše' },
+                  { key: 'new', label: 'Nové' },
+                  { key: 'in_progress', label: 'Probíhá' },
+                  { key: 'review', label: 'Ke kontrole' },
+                  { key: 'done', label: 'Hotovo' },
+                ].map(tab => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setStatusFilter(tab.key)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                      statusFilter === tab.key
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    {tab.label}
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                      statusFilter === tab.key ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {taskCounts[tab.key]}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Tasks list */}
+            {filteredTasks.length === 0 ? (
+              <div className="card p-10 text-center">
+                <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </div>
+                <p className="text-gray-500 text-sm">
+                  {statusFilter === 'all' ? 'Zatím žádné požadavky.' : 'Žádné požadavky v tomto stavu.'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredTasks.map(task => (
+                  <TaskCard key={task.id} task={task} clientId={clientId} />
+                ))}
+              </div>
+            )}
+          </>
         )}
 
-        {/* Tasks list */}
-        {filteredTasks.length === 0 ? (
-          <div className="card p-10 text-center">
-            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-              <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            </div>
-            <p className="text-gray-500 text-sm">
-              {statusFilter === 'all' ? 'Zatím žádné požadavky.' : 'Žádné požadavky v tomto stavu.'}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filteredTasks.map(task => (
-              <TaskCard key={task.id} task={task} clientId={clientId} />
-            ))}
-          </div>
+        {activeSection === 'inspiration' && (
+          <ClientInspirationSection clientId={clientId} />
         )}
       </div>
 

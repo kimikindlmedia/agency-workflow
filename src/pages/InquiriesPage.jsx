@@ -13,6 +13,17 @@ const PROFILE_PLATFORMS = [
   { key: 'web',       label: 'Web',       placeholder: 'https://www.firma.cz',         color: 'text-gray-600' },
 ]
 
+const STAGE_OPTIONS = [
+  { value: 'lead',      label: 'Poptávka',              color: 'bg-gray-100 text-gray-700 border-gray-300' },
+  { value: 'confirmed', label: 'Potvrzený zájem',        color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+  { value: 'deal',      label: 'Dohodnutá spolupráce',   color: 'bg-green-100 text-green-800 border-green-300' },
+]
+
+function StageBadge({ stage }) {
+  const opt = STAGE_OPTIONS.find(o => o.value === stage) || STAGE_OPTIONS[0]
+  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${opt.color}`}>{opt.label}</span>
+}
+
 function formatDate(isoString) {
   if (!isoString) return ''
   return new Date(isoString).toLocaleDateString('cs-CZ', {
@@ -31,6 +42,7 @@ function AddInquiryModal({ isOpen, onClose }) {
     contentTypes: [],
     deadline: '',
     source: '',
+    stage: 'lead',
     profileLinks: { instagram: '', tiktok: '', facebook: '', youtube: '', web: '' },
   })
   const [errors, setErrors] = useState({})
@@ -60,13 +72,13 @@ function AddInquiryModal({ isOpen, onClose }) {
     const errs = validate()
     if (Object.keys(errs).length > 0) { setErrors(errs); return }
     dispatch({ type: 'ADD_INQUIRY', payload: form })
-    setForm({ clientName: '', contact: '', description: '', budget: '', contentTypes: [], deadline: '', source: '', profileLinks: { instagram: '', tiktok: '', facebook: '', youtube: '', web: '' } })
+    setForm({ clientName: '', contact: '', description: '', budget: '', contentTypes: [], deadline: '', source: '', stage: 'lead', profileLinks: { instagram: '', tiktok: '', facebook: '', youtube: '', web: '' } })
     setErrors({})
     onClose()
   }
 
   const handleClose = () => {
-    setForm({ clientName: '', contact: '', description: '', budget: '', contentTypes: [], deadline: '', source: '', profileLinks: { instagram: '', tiktok: '', facebook: '', youtube: '', web: '' } })
+    setForm({ clientName: '', contact: '', description: '', budget: '', contentTypes: [], deadline: '', source: '', stage: 'lead', profileLinks: { instagram: '', tiktok: '', facebook: '', youtube: '', web: '' } })
     setErrors({})
     onClose()
   }
@@ -160,6 +172,24 @@ function AddInquiryModal({ isOpen, onClose }) {
         </div>
 
         <div className="form-group">
+          <label className="label">Fáze</label>
+          <div className="flex flex-wrap gap-2 mt-1">
+            {STAGE_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setForm(f => ({ ...f, stage: opt.value }))}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                  form.stage === opt.value ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-300'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="form-group">
           <label className="label">Profily / Weby</label>
           <div className="space-y-2 mt-1">
             {PROFILE_PLATFORMS.map(p => (
@@ -185,6 +215,204 @@ function AddInquiryModal({ isOpen, onClose }) {
   )
 }
 
+// ── Edit Inquiry Modal ───────────────────────────────────────────────────────
+function EditInquiryModal({ isOpen, onClose, inquiry }) {
+  const { dispatch } = useApp()
+  const [form, setForm] = useState({
+    clientName: inquiry.clientName || '',
+    contact: inquiry.contact || '',
+    description: inquiry.description || '',
+    budget: inquiry.budget || '',
+    contentTypes: inquiry.contentTypes || [],
+    deadline: inquiry.deadline || '',
+    source: inquiry.source || '',
+    stage: inquiry.stage || 'lead',
+    profileLinks: inquiry.profileLinks || { instagram: '', tiktok: '', facebook: '', youtube: '', web: '' },
+  })
+  const [errors, setErrors] = useState({})
+
+  const handleChange = (field) => (e) => {
+    setForm(f => ({ ...f, [field]: e.target.value }))
+    if (errors[field]) setErrors(er => ({ ...er, [field]: '' }))
+  }
+
+  const handleContentTypeToggle = (ct) => {
+    setForm(f => ({
+      ...f,
+      contentTypes: f.contentTypes.includes(ct)
+        ? f.contentTypes.filter(c => c !== ct)
+        : [...f.contentTypes, ct],
+    }))
+  }
+
+  const validate = () => {
+    const errs = {}
+    if (!form.clientName.trim()) errs.clientName = 'Jméno klienta je povinné'
+    return errs
+  }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    const errs = validate()
+    if (Object.keys(errs).length > 0) { setErrors(errs); return }
+    dispatch({
+      type: 'UPDATE_INQUIRY',
+      payload: {
+        id: inquiry.id,
+        updates: {
+          clientName: form.clientName,
+          contact: form.contact,
+          description: form.description,
+          budget: form.budget,
+          contentTypes: form.contentTypes,
+          deadline: form.deadline,
+          source: form.source,
+          stage: form.stage,
+          profileLinks: form.profileLinks,
+        },
+      },
+    })
+    setErrors({})
+    onClose()
+  }
+
+  const handleClose = () => {
+    setErrors({})
+    onClose()
+  }
+
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose} title="Upravit poptávku" size="lg">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="form-group">
+            <label className="label">Jméno klienta <span className="text-red-500">*</span></label>
+            <input
+              className={`input ${errors.clientName ? 'border-red-400' : ''}`}
+              placeholder="Jan Novák"
+              value={form.clientName}
+              onChange={handleChange('clientName')}
+              autoFocus
+            />
+            {errors.clientName && <p className="text-xs text-red-500 mt-1">{errors.clientName}</p>}
+          </div>
+          <div className="form-group">
+            <label className="label">Kontakt (email / telefon)</label>
+            <input
+              className="input"
+              placeholder="jan@firma.cz"
+              value={form.contact}
+              onChange={handleChange('contact')}
+            />
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label className="label">Popis poptávky</label>
+          <textarea
+            className="input resize-none"
+            rows={3}
+            placeholder="Co klient potřebuje..."
+            value={form.description}
+            onChange={handleChange('description')}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="form-group">
+            <label className="label">Rozpočet</label>
+            <input
+              className="input"
+              placeholder="např. 20 000 Kč / měsíc"
+              value={form.budget}
+              onChange={handleChange('budget')}
+            />
+          </div>
+          <div className="form-group">
+            <label className="label">Deadline / Začátek spolupráce</label>
+            <input
+              type="date"
+              className="input"
+              value={form.deadline}
+              onChange={handleChange('deadline')}
+            />
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label className="label">Typy obsahu</label>
+          <div className="flex flex-wrap gap-2 mt-1">
+            {CONTENT_TYPE_OPTIONS.map(ct => (
+              <button
+                key={ct}
+                type="button"
+                onClick={() => handleContentTypeToggle(ct)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                  form.contentTypes.includes(ct)
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-300'
+                }`}
+              >
+                {ct}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label className="label">Odkud nás znají</label>
+          <input
+            className="input"
+            placeholder="Instagram, doporučení, Google..."
+            value={form.source}
+            onChange={handleChange('source')}
+          />
+        </div>
+
+        <div className="form-group">
+          <label className="label">Fáze</label>
+          <div className="flex flex-wrap gap-2 mt-1">
+            {STAGE_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setForm(f => ({ ...f, stage: opt.value }))}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                  form.stage === opt.value ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-300'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label className="label">Profily / Weby</label>
+          <div className="space-y-2 mt-1">
+            {PROFILE_PLATFORMS.map(p => (
+              <div key={p.key} className="flex items-center gap-2">
+                <span className={`text-xs font-semibold w-20 flex-shrink-0 ${p.color}`}>{p.label}</span>
+                <input
+                  className="input text-sm"
+                  placeholder={p.placeholder}
+                  value={form.profileLinks[p.key] || ''}
+                  onChange={e => setForm(f => ({ ...f, profileLinks: { ...f.profileLinks, [p.key]: e.target.value } }))}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <button type="button" onClick={handleClose} className="btn-secondary flex-1">Zrušit</button>
+          <button type="submit" className="btn-primary flex-1">Uložit změny</button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
 // ── Inquiry Card / Row ───────────────────────────────────────────────────────
 function InquiryCard({ inquiry }) {
   const { state, dispatch } = useApp()
@@ -192,6 +420,7 @@ function InquiryCard({ inquiry }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [notes, setNotes] = useState(inquiry.notes || '')
   const [editingNotes, setEditingNotes] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
 
   const { member1Name, member2Name } = state.settings
 
@@ -266,6 +495,7 @@ function InquiryCard({ inquiry }) {
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-semibold text-gray-900">{inquiry.clientName}</span>
               <StatusBadge status={inquiry.status} />
+              <StageBadge stage={inquiry.stage} />
             </div>
             {inquiry.description && (
               <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">{inquiry.description}</p>
@@ -487,8 +717,14 @@ function InquiryCard({ inquiry }) {
             )}
           </div>
 
-          {/* Delete */}
-          <div className="flex justify-end pt-2 border-t border-gray-100">
+          {/* Delete / Edit */}
+          <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+            <button
+              onClick={() => setShowEdit(true)}
+              className="text-xs text-indigo-600 hover:text-indigo-800 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors font-medium"
+            >
+              Upravit poptávku
+            </button>
             {!confirmDelete ? (
               <button
                 onClick={() => setConfirmDelete(true)}
@@ -506,6 +742,8 @@ function InquiryCard({ inquiry }) {
           </div>
         </div>
       )}
+
+      <EditInquiryModal isOpen={showEdit} onClose={() => setShowEdit(false)} inquiry={inquiry} />
     </div>
   )
 }

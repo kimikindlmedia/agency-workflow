@@ -8,7 +8,7 @@ function generateId() {
 // ── Normalize DB rows → frontend format ──────────────────────────────────────
 
 function normalizeClient(c) {
-  return { ...c, createdAt: c.created_at, tasks: [] }
+  return { ...c, createdAt: c.created_at, driveUrl: c.drive_url || '', tasks: [] }
 }
 
 function normalizeTask(t) {
@@ -40,6 +40,7 @@ function normalizeInquiry(i) {
     contentTypes: i.content_types || [],
     profileLinks: i.profile_links || {},
     createdAt: i.created_at,
+    stage: i.stage || 'lead',
   }
 }
 
@@ -50,7 +51,12 @@ function normalizeInspiration(item) {
     fileName: item.file_name,
     fileType: item.file_type,
     createdAt: item.created_at,
+    clientId: item.client_id || null,
   }
+}
+
+function normalizeEvent(e) {
+  return { ...e, clientId: e.client_id, createdAt: e.created_at }
 }
 
 // ── Context & Provider ────────────────────────────────────────────────────────
@@ -59,6 +65,7 @@ const initialState = {
   clients: [],
   inquiries: [],
   inspiration: [],
+  events: [],
   settings: { member1Name: 'Člen 1', member2Name: 'Člen 2' },
   loading: true,
   error: null,
@@ -73,7 +80,7 @@ export function AppProvider({ children }) {
 
   async function loadAll() {
     try {
-      const [clientsRes, tasksRes, outputsRes, inquiriesRes, inspirationRes, settingsRes] =
+      const [clientsRes, tasksRes, outputsRes, inquiriesRes, inspirationRes, settingsRes, eventsRes] =
         await Promise.all([
           supabase.from('clients').select('*').order('created_at'),
           supabase.from('tasks').select('*').order('created_at'),
@@ -81,6 +88,7 @@ export function AppProvider({ children }) {
           supabase.from('inquiries').select('*').order('created_at', { ascending: false }),
           supabase.from('inspiration').select('*').order('created_at', { ascending: false }),
           supabase.from('settings').select('*').eq('id', 1).single(),
+          supabase.from('events').select('*').order('date'),
         ])
 
       // Group outputs by task_id
@@ -110,6 +118,7 @@ export function AppProvider({ children }) {
         clients,
         inquiries: (inquiriesRes.data || []).map(normalizeInquiry),
         inspiration: (inspirationRes.data || []).map(normalizeInspiration),
+        events: (eventsRes.data || []).map(normalizeEvent),
         settings,
         loading: false,
         error: null,
@@ -134,11 +143,12 @@ export function AppProvider({ children }) {
           email: action.payload.email || '',
           phone: action.payload.phone || '',
           color: action.payload.color || '#6366f1',
+          drive_url: action.payload.driveUrl || '',
           created_at: new Date().toISOString(),
         }
         setState(s => ({
           ...s,
-          clients: [...s.clients, { ...row, createdAt: row.created_at, tasks: [] }],
+          clients: [...s.clients, { ...row, createdAt: row.created_at, driveUrl: row.drive_url, tasks: [] }],
         }))
         await supabase.from('clients').insert(row)
         break
@@ -151,11 +161,12 @@ export function AppProvider({ children }) {
           clients: s.clients.map(c => c.id === id ? { ...c, ...rest } : c),
         }))
         const dbUpdate = {}
-        if (rest.name      !== undefined) dbUpdate.name    = rest.name
-        if (rest.company   !== undefined) dbUpdate.company = rest.company
-        if (rest.email     !== undefined) dbUpdate.email   = rest.email
-        if (rest.phone     !== undefined) dbUpdate.phone   = rest.phone
-        if (rest.color     !== undefined) dbUpdate.color   = rest.color
+        if (rest.name      !== undefined) dbUpdate.name      = rest.name
+        if (rest.company   !== undefined) dbUpdate.company   = rest.company
+        if (rest.email     !== undefined) dbUpdate.email     = rest.email
+        if (rest.phone     !== undefined) dbUpdate.phone     = rest.phone
+        if (rest.color     !== undefined) dbUpdate.color     = rest.color
+        if (rest.driveUrl  !== undefined) dbUpdate.drive_url = rest.driveUrl
         await supabase.from('clients').update(dbUpdate).eq('id', id)
         break
       }
@@ -327,6 +338,7 @@ export function AppProvider({ children }) {
           deadline: action.payload.deadline || '',
           source: action.payload.source || '',
           profile_links: action.payload.profileLinks || {},
+          stage: action.payload.stage || 'lead',
           votes: { member1: null, member2: null },
           notes: '',
           status: 'pending',
@@ -338,6 +350,7 @@ export function AppProvider({ children }) {
           contentTypes: row.content_types,
           profileLinks: row.profile_links,
           createdAt: row.created_at,
+          stage: row.stage,
         }
         setState(s => ({ ...s, inquiries: [frontend, ...s.inquiries] }))
         await supabase.from('inquiries').insert(row)
@@ -354,6 +367,15 @@ export function AppProvider({ children }) {
         if (updates.status !== undefined) dbUpdate.status = updates.status
         if (updates.votes  !== undefined) dbUpdate.votes  = updates.votes
         if (updates.notes  !== undefined) dbUpdate.notes  = updates.notes
+        if (updates.stage  !== undefined) dbUpdate.stage  = updates.stage
+        if (updates.clientName   !== undefined) dbUpdate.client_name   = updates.clientName
+        if (updates.contact      !== undefined) dbUpdate.contact       = updates.contact
+        if (updates.description  !== undefined) dbUpdate.description   = updates.description
+        if (updates.budget       !== undefined) dbUpdate.budget        = updates.budget
+        if (updates.contentTypes !== undefined) dbUpdate.content_types = updates.contentTypes
+        if (updates.deadline     !== undefined) dbUpdate.deadline      = updates.deadline
+        if (updates.source       !== undefined) dbUpdate.source        = updates.source
+        if (updates.profileLinks !== undefined) dbUpdate.profile_links = updates.profileLinks
         await supabase.from('inquiries').update(dbUpdate).eq('id', id)
         break
       }
@@ -406,6 +428,7 @@ export function AppProvider({ children }) {
           file_name: fileName || null,
           file_type: fileType || null,
           url: rest.url || null,
+          client_id: rest.clientId || null,
           created_at: new Date().toISOString(),
         }
         const frontend = {
@@ -414,6 +437,7 @@ export function AppProvider({ children }) {
           fileName: row.file_name,
           fileType: row.file_type,
           createdAt: row.created_at,
+          clientId: row.client_id,
         }
         setState(s => ({ ...s, inspiration: [frontend, ...s.inspiration] }))
         await supabase.from('inspiration').insert(row)
@@ -443,6 +467,7 @@ export function AppProvider({ children }) {
           file_name:   updates.fileName || null,
           file_type:   updates.fileType || null,
           url:         updates.url || null,
+          client_id:   updates.clientId || null,
         }).eq('id', id)
         break
       }
@@ -453,6 +478,44 @@ export function AppProvider({ children }) {
           inspiration: s.inspiration.filter(i => i.id !== action.payload.id),
         }))
         await supabase.from('inspiration').delete().eq('id', action.payload.id)
+        break
+      }
+
+      // ── EVENTS ─────────────────────────────────────────────────────────────
+
+      case 'ADD_EVENT': {
+        const id = generateId()
+        const row = {
+          id,
+          title: action.payload.title,
+          date: action.payload.date,
+          type: action.payload.type || 'other',
+          client_id: action.payload.clientId || null,
+          description: action.payload.description || '',
+          created_at: new Date().toISOString(),
+        }
+        const frontend = { ...row, clientId: row.client_id, createdAt: row.created_at }
+        setState(s => ({ ...s, events: [...s.events, frontend].sort((a,b) => a.date.localeCompare(b.date)) }))
+        await supabase.from('events').insert(row)
+        break
+      }
+
+      case 'UPDATE_EVENT': {
+        const { id, updates } = action.payload
+        setState(s => ({ ...s, events: s.events.map(e => e.id === id ? { ...e, ...updates } : e) }))
+        const dbUpdate = {}
+        if (updates.title       !== undefined) dbUpdate.title       = updates.title
+        if (updates.date        !== undefined) dbUpdate.date        = updates.date
+        if (updates.type        !== undefined) dbUpdate.type        = updates.type
+        if (updates.clientId    !== undefined) dbUpdate.client_id   = updates.clientId
+        if (updates.description !== undefined) dbUpdate.description = updates.description
+        await supabase.from('events').update(dbUpdate).eq('id', id)
+        break
+      }
+
+      case 'DELETE_EVENT': {
+        setState(s => ({ ...s, events: s.events.filter(e => e.id !== action.payload.id) }))
+        await supabase.from('events').delete().eq('id', action.payload.id)
         break
       }
 
