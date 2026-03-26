@@ -33,7 +33,7 @@ function formatWeek(weekStart) {
 
 export default function TeamPage() {
   const { state, dispatch } = useApp()
-  const { member1Name, member2Name } = state.settings
+  const { member1Name, member2Name, member3Name } = state.settings
   const [weekStart, setWeekStart] = useState(getWeekStart())
   const [newGoal, setNewGoal] = useState({ title: '', assignee: 'team' })
   const [showGoalForm, setShowGoalForm] = useState(false)
@@ -179,6 +179,7 @@ export default function TeamPage() {
   const goalAssigneeLabel = (a) => {
     if (a === 'member1') return member1Name
     if (a === 'member2') return member2Name
+    if (a === 'member3') return member3Name
     return 'Celý tým'
   }
 
@@ -190,9 +191,10 @@ export default function TeamPage() {
       </div>
 
       {/* Member task boards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {renderMemberTasks('member1', member1Name)}
         {renderMemberTasks('member2', member2Name)}
+        {renderMemberTasks('member3', member3Name)}
       </div>
 
       {/* Weekly goals */}
@@ -240,6 +242,7 @@ export default function TeamPage() {
               <option value="team">Celý tým</option>
               <option value="member1">{member1Name}</option>
               <option value="member2">{member2Name}</option>
+              <option value="member3">{member3Name}</option>
             </select>
             <button onClick={addGoal} className="btn-primary text-sm flex-shrink-0">Přidat</button>
             <button onClick={() => setShowGoalForm(false)} className="btn-secondary text-sm flex-shrink-0">Zrušit</button>

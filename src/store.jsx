@@ -55,6 +55,16 @@ function normalizeInquiry(i) {
   }
 }
 
+function normalizeScenario(s) {
+  return {
+    ...s,
+    clientId: s.client_id,
+    inspirationUrl: s.inspiration_url || '',
+    tags: s.tags || [],
+    createdAt: s.created_at,
+  }
+}
+
 function normalizeInspiration(item) {
   return {
     ...item,
@@ -80,7 +90,8 @@ const initialState = {
   posts: [],
   postComments: [],
   weeklyGoals: [],
-  settings: { member1Name: 'Člen 1', member2Name: 'Člen 2' },
+  scenarios: [],
+  settings: { member1Name: 'Člen 1', member2Name: 'Člen 2', member3Name: 'Patrik' },
   loading: true,
   error: null,
 }
@@ -94,7 +105,7 @@ export function AppProvider({ children }) {
 
   async function loadAll() {
     try {
-      const [clientsRes, tasksRes, outputsRes, inquiriesRes, inspirationRes, settingsRes, eventsRes, postsRes, postCommentsRes, weeklyGoalsRes] =
+      const [clientsRes, tasksRes, outputsRes, inquiriesRes, inspirationRes, settingsRes, eventsRes, postsRes, postCommentsRes, weeklyGoalsRes, scenariosRes] =
         await Promise.all([
           supabase.from('clients').select('*').order('created_at'),
           supabase.from('tasks').select('*').order('created_at'),
@@ -106,6 +117,7 @@ export function AppProvider({ children }) {
           supabase.from('posts').select('*').order('created_at', { ascending: false }),
           supabase.from('post_comments').select('*').order('created_at'),
           supabase.from('weekly_goals').select('*').order('created_at'),
+          supabase.from('scenarios').select('*').order('created_at', { ascending: false }),
         ])
 
       // Group outputs by task_id
@@ -128,8 +140,12 @@ export function AppProvider({ children }) {
       }))
 
       const settings = settingsRes.data
-        ? { member1Name: settingsRes.data.member1_name, member2Name: settingsRes.data.member2_name }
-        : initialState.settings
+        ? {
+            member1Name: settingsRes.data.member1_name,
+            member2Name: settingsRes.data.member2_name,
+            member3Name: settingsRes.data.member3_name || 'Patrik',
+          }
+        : { ...initialState.settings, member3Name: 'Patrik' }
 
       setState({
         clients,
@@ -139,6 +155,7 @@ export function AppProvider({ children }) {
         posts: (postsRes.data || []).map(normalizePost),
         postComments: (postCommentsRes.data || []).map(normalizePostComment),
         weeklyGoals: (weeklyGoalsRes.data || []).map(normalizeWeeklyGoal),
+        scenarios: (scenariosRes.data || []).map(normalizeScenario),
         settings,
         loading: false,
         error: null,
@@ -550,10 +567,11 @@ export function AppProvider({ children }) {
 
       case 'UPDATE_SETTINGS': {
         setState(s => ({ ...s, settings: { ...s.settings, ...action.payload } }))
-        await supabase.from('settings').update({
-          member1_name: action.payload.member1Name,
-          member2_name: action.payload.member2Name,
-        }).eq('id', 1)
+        const dbSettingsUpdate = {}
+        if (action.payload.member1Name !== undefined) dbSettingsUpdate.member1_name = action.payload.member1Name
+        if (action.payload.member2Name !== undefined) dbSettingsUpdate.member2_name = action.payload.member2Name
+        if (action.payload.member3Name !== undefined) dbSettingsUpdate.member3_name = action.payload.member3Name
+        await supabase.from('settings').update(dbSettingsUpdate).eq('id', 1)
         break
       }
 
@@ -608,6 +626,47 @@ export function AppProvider({ children }) {
       case 'DELETE_WEEKLY_GOAL': {
         setState(s => ({ ...s, weeklyGoals: s.weeklyGoals.filter(g => g.id !== action.payload.id) }))
         await supabase.from('weekly_goals').delete().eq('id', action.payload.id)
+        break
+      }
+
+      // ── SCENARIOS ──────────────────────────────────────────────────────────
+
+      case 'ADD_SCENARIO': {
+        const id = generateId()
+        const row = {
+          id,
+          client_id: action.payload.clientId,
+          title: action.payload.title,
+          content: action.payload.content || '',
+          category: action.payload.category || 'other',
+          status: action.payload.status || 'idea',
+          tags: action.payload.tags || [],
+          inspiration_url: action.payload.inspirationUrl || '',
+          created_at: new Date().toISOString(),
+        }
+        const frontend = normalizeScenario(row)
+        setState(s => ({ ...s, scenarios: [frontend, ...s.scenarios] }))
+        await supabase.from('scenarios').insert(row)
+        break
+      }
+      case 'UPDATE_SCENARIO': {
+        const { id, updates } = action.payload
+        const normalizedUpdates = { ...updates }
+        if (updates.inspirationUrl !== undefined) normalizedUpdates.inspirationUrl = updates.inspirationUrl
+        setState(s => ({ ...s, scenarios: s.scenarios.map(sc => sc.id === id ? { ...sc, ...normalizedUpdates } : sc) }))
+        const dbUpdate = {}
+        if (updates.title !== undefined) dbUpdate.title = updates.title
+        if (updates.content !== undefined) dbUpdate.content = updates.content
+        if (updates.category !== undefined) dbUpdate.category = updates.category
+        if (updates.status !== undefined) dbUpdate.status = updates.status
+        if (updates.tags !== undefined) dbUpdate.tags = updates.tags
+        if (updates.inspirationUrl !== undefined) dbUpdate.inspiration_url = updates.inspirationUrl
+        await supabase.from('scenarios').update(dbUpdate).eq('id', id)
+        break
+      }
+      case 'DELETE_SCENARIO': {
+        setState(s => ({ ...s, scenarios: s.scenarios.filter(sc => sc.id !== action.payload.id) }))
+        await supabase.from('scenarios').delete().eq('id', action.payload.id)
         break
       }
 

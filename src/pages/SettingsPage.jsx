@@ -6,6 +6,7 @@ export default function SettingsPage() {
   const [form, setForm] = useState({
     member1Name: state.settings.member1Name,
     member2Name: state.settings.member2Name,
+    member3Name: state.settings.member3Name,
   })
   const [saved, setSaved] = useState(false)
 
@@ -54,6 +55,16 @@ export default function SettingsPage() {
               placeholder="Jméno druhého člena"
               value={form.member2Name}
               onChange={handleChange('member2Name')}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="label">Člen týmu 3</label>
+            <input
+              className="input"
+              placeholder="Jméno třetího člena"
+              value={form.member3Name}
+              onChange={handleChange('member3Name')}
             />
           </div>
 

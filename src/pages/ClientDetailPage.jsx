@@ -4,6 +4,7 @@ import Modal from '../components/Modal.jsx'
 import { StatusBadge, ContentTypeBadge } from '../components/Badge.jsx'
 import { Avatar, getInitials } from './ClientsPage.jsx'
 import ClientInspirationSection from '../components/ClientInspiration.jsx'
+import ClientScenariosSection from '../components/ClientScenarios.jsx'
 
 const ALL_SERVICES = ['Správa soc. sítí','Reels','Carousely','Natáčení','Edit','Scénáře','Focení']
 
@@ -240,6 +241,7 @@ function TaskModal({ isOpen, onClose, clientId, task = null }) {
             <option value="">— nepřiřazeno —</option>
             <option value="member1">{state.settings.member1Name}</option>
             <option value="member2">{state.settings.member2Name}</option>
+            <option value="member3">{state.settings.member3Name}</option>
             <option value="both">Oba</option>
           </select>
         </div>
@@ -570,7 +572,7 @@ function TaskCard({ task, clientId }) {
               )}
               {task.assignee && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200">
-                  {task.assignee === 'both' ? 'Oba' : task.assignee === 'member1' ? appState.settings.member1Name : appState.settings.member2Name}
+                  {task.assignee === 'both' ? 'Oba' : task.assignee === 'member1' ? appState.settings.member1Name : task.assignee === 'member2' ? appState.settings.member2Name : appState.settings.member3Name}
                 </span>
               )}
             </div>
@@ -922,6 +924,7 @@ export default function ClientDetailPage({ clientId, onBack }) {
           {[
             { key: 'tasks', label: 'Požadavky / Úkoly' },
             { key: 'inspiration', label: 'Inspirace & Reference' },
+            { key: 'scenarios', label: 'Scénáře' },
           ].map(tab => (
             <button
               key={tab.key}
@@ -1004,6 +1007,8 @@ export default function ClientDetailPage({ clientId, onBack }) {
         {activeSection === 'inspiration' && (
           <ClientInspirationSection clientId={clientId} />
         )}
+
+        {activeSection === 'scenarios' && <ClientScenariosSection clientId={clientId} />}
       </div>
 
       <TaskModal

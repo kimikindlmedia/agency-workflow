@@ -14,13 +14,18 @@ function timeAgo(isoString) {
 
 function PostCard({ post }) {
   const { state, dispatch } = useApp()
-  const { member1Name, member2Name } = state.settings
+  const { member1Name, member2Name, member3Name } = state.settings
   const [commentText, setCommentText] = useState('')
   const [commentAuthor, setCommentAuthor] = useState('member1')
   const [showCommentForm, setShowCommentForm] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
-  const authorName = (author) => author === 'member1' ? member1Name : member2Name
+  const authorName = (author) => {
+    if (author === 'member1') return member1Name
+    if (author === 'member2') return member2Name
+    if (author === 'member3') return member3Name
+    return author
+  }
 
   const postComments = (state.postComments || []).filter(c => c.postId === post.id)
 
@@ -94,6 +99,7 @@ function PostCard({ post }) {
             <select className="input text-sm w-28 flex-shrink-0" value={commentAuthor} onChange={e => setCommentAuthor(e.target.value)}>
               <option value="member1">{member1Name}</option>
               <option value="member2">{member2Name}</option>
+              <option value="member3">{member3Name}</option>
             </select>
             <input
               className="input flex-1 text-sm"
@@ -124,7 +130,7 @@ function PostCard({ post }) {
 
 export default function WallPage() {
   const { state, dispatch } = useApp()
-  const { member1Name, member2Name } = state.settings
+  const { member1Name, member2Name, member3Name } = state.settings
   const [content, setContent] = useState('')
   const [author, setAuthor] = useState('member1')
 
@@ -147,7 +153,7 @@ export default function WallPage() {
       <div className="card p-4 space-y-3">
         <div className="flex items-start gap-3">
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-            {(author === 'member1' ? member1Name : member2Name).slice(0, 2).toUpperCase()}
+            {(author === 'member1' ? member1Name : author === 'member2' ? member2Name : member3Name).slice(0, 2).toUpperCase()}
           </div>
           <textarea
             className="input flex-1 resize-none text-sm"
@@ -165,6 +171,7 @@ export default function WallPage() {
           >
             <option value="member1">{member1Name}</option>
             <option value="member2">{member2Name}</option>
+            <option value="member3">{member3Name}</option>
           </select>
           <button
             onClick={addPost}
