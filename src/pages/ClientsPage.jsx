@@ -16,7 +16,7 @@ function getInitials(name) {
     .slice(0, 2)
 }
 
-function Avatar({ name, color, size = 'md' }) {
+function Avatar({ name, color, size = 'md', photoUrl = '' }) {
   const sizes = {
     sm: 'w-9 h-9 text-sm',
     md: 'w-12 h-12 text-base',
@@ -24,10 +24,13 @@ function Avatar({ name, color, size = 'md' }) {
   }
   return (
     <div
-      className={`${sizes[size]} rounded-full flex items-center justify-center font-bold text-white flex-shrink-0`}
-      style={{ backgroundColor: color }}
+      className={`${sizes[size]} rounded-full flex items-center justify-center font-bold text-white flex-shrink-0 overflow-hidden`}
+      style={{ backgroundColor: photoUrl ? 'transparent' : color }}
     >
-      {getInitials(name)}
+      {photoUrl
+        ? <img src={photoUrl} alt={name} className="w-full h-full object-cover rounded-full" />
+        : getInitials(name)
+      }
     </div>
   )
 }
@@ -212,11 +215,8 @@ export default function ClientsPage({ onSelectClient }) {
                 className="card p-5 text-left hover:shadow-md hover:border-indigo-100 transition-all duration-200 group"
               >
                 <div className="flex items-start gap-3">
-                  <div
-                    className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-white text-base flex-shrink-0 transition-transform group-hover:scale-105"
-                    style={{ backgroundColor: client.color }}
-                  >
-                    {getInitials(client.name)}
+                  <div className="transition-transform group-hover:scale-105 flex-shrink-0">
+                    <Avatar name={client.name} color={client.color} size="md" photoUrl={client.photoUrl} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-gray-900 truncate group-hover:text-indigo-700 transition-colors">

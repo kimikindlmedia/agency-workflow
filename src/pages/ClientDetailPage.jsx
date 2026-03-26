@@ -5,6 +5,8 @@ import { StatusBadge, ContentTypeBadge } from '../components/Badge.jsx'
 import { Avatar, getInitials } from './ClientsPage.jsx'
 import ClientInspirationSection from '../components/ClientInspiration.jsx'
 
+const ALL_SERVICES = ['Správa soc. sítí','Reels','Carousely','Natáčení','Edit','Scénáře','Focení']
+
 const AVATAR_COLORS = [
   '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316',
   '#eab308', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6',
@@ -50,7 +52,7 @@ function formatDeadline(dateStr) {
 
 // ── Add / Edit Task Modal ───────────────────────────────────────────────────
 function TaskModal({ isOpen, onClose, clientId, task = null }) {
-  const { dispatch } = useApp()
+  const { dispatch, state } = useApp()
   const isEdit = !!task
   const [form, setForm] = useState({
     title: task?.title || '',
@@ -61,6 +63,7 @@ function TaskModal({ isOpen, onClose, clientId, task = null }) {
     contentType: task?.contentType || 'other',
     deadline: task?.deadline || '',
     note: task?.note || '',
+    assignee: task?.assignee || '',
   })
   const [errors, setErrors] = useState({})
   const [audioError, setAudioError] = useState('')
@@ -108,7 +111,7 @@ function TaskModal({ isOpen, onClose, clientId, task = null }) {
 
   const handleClose = () => {
     if (!isEdit) {
-      setForm({ title: '', description: '', type: 'text', audioData: null, audioName: null, contentType: 'other', deadline: '', note: '' })
+      setForm({ title: '', description: '', type: 'text', audioData: null, audioName: null, contentType: 'other', deadline: '', note: '', assignee: '' })
     }
     setErrors({})
     setAudioError('')
@@ -229,6 +232,16 @@ function TaskModal({ isOpen, onClose, clientId, task = null }) {
               onChange={handleChange('deadline')}
             />
           </div>
+        </div>
+
+        <div className="form-group">
+          <label className="label">Přiřadit</label>
+          <select className="input" value={form.assignee} onChange={handleChange('assignee')}>
+            <option value="">— nepřiřazeno —</option>
+            <option value="member1">{state.settings.member1Name}</option>
+            <option value="member2">{state.settings.member2Name}</option>
+            <option value="both">Oba</option>
+          </select>
         </div>
 
         <div className="form-group">
@@ -419,6 +432,7 @@ function EditClientModal({ isOpen, onClose, client }) {
     phone: client.phone,
     color: client.color,
     driveUrl: client.driveUrl || '',
+    photoUrl: client.photoUrl || '',
   })
   const [errors, setErrors] = useState({})
 
@@ -430,7 +444,7 @@ function EditClientModal({ isOpen, onClose, client }) {
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!form.name.trim()) { setErrors({ name: 'Jméno je povinné' }); return }
-    dispatch({ type: 'UPDATE_CLIENT', payload: { id: client.id, ...form, driveUrl: form.driveUrl } })
+    dispatch({ type: 'UPDATE_CLIENT', payload: { id: client.id, ...form, driveUrl: form.driveUrl, photoUrl: form.photoUrl } })
     onClose()
   }
 
@@ -463,6 +477,33 @@ function EditClientModal({ isOpen, onClose, client }) {
           <input className="input" type="url" placeholder="https://drive.google.com/..." value={form.driveUrl} onChange={handleChange('driveUrl')} />
         </div>
         <div className="form-group">
+          <label className="label">Foto klienta</label>
+          <div className="flex gap-2">
+            <input
+              className="input flex-1"
+              placeholder="URL fotky nebo nahrajte soubor"
+              value={form.photoUrl}
+              onChange={e => setForm(f => ({ ...f, photoUrl: e.target.value }))}
+            />
+            <label className="btn-secondary cursor-pointer flex-shrink-0">
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={async (e) => {
+                  const file = e.target.files[0]
+                  if (!file) return
+                  const reader = new FileReader()
+                  reader.onload = () => setForm(f => ({ ...f, photoUrl: reader.result }))
+                  reader.readAsDataURL(file)
+                }}
+              />
+              Nahrát
+            </label>
+          </div>
+          <p className="text-xs text-gray-400 mt-1">Vložte URL z Instagramu nebo nahrajte foto</p>
+        </div>
+        <div className="form-group">
           <label className="label">Barva avatara</label>
           <div className="flex flex-wrap gap-2 mt-1">
             {AVATAR_COLORS.map(color => (
@@ -487,7 +528,7 @@ function EditClientModal({ isOpen, onClose, client }) {
 
 // ── Task Card ────────────────────────────────────────────────────────────────
 function TaskCard({ task, clientId }) {
-  const { dispatch } = useApp()
+  const { dispatch, state: appState } = useApp()
   const [expanded, setExpanded] = useState(false)
   const [showOutputModal, setShowOutputModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -525,6 +566,11 @@ function TaskCard({ task, clientId }) {
               {task.type === 'voice' && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700 border border-violet-200">
                   🎙️ Hlasová
+                </span>
+              )}
+              {task.assignee && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200">
+                  {task.assignee === 'both' ? 'Oba' : task.assignee === 'member1' ? appState.settings.member1Name : appState.settings.member2Name}
                 </span>
               )}
             </div>
@@ -782,10 +828,13 @@ export default function ClientDetailPage({ clientId, onBack }) {
       <div className="card p-6">
         <div className="flex items-start gap-4">
           <div
-            className="w-16 h-16 rounded-full flex items-center justify-center font-bold text-white text-xl flex-shrink-0"
-            style={{ backgroundColor: client.color }}
+            className="w-16 h-16 rounded-full flex items-center justify-center font-bold text-white text-xl flex-shrink-0 overflow-hidden"
+            style={{ backgroundColor: client.photoUrl ? 'transparent' : client.color }}
           >
-            {getInitials(client.name)}
+            {client.photoUrl
+              ? <img src={client.photoUrl} alt={client.name} className="w-full h-full object-cover" />
+              : getInitials(client.name)
+            }
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold text-gray-900">{client.name}</h1>
@@ -817,6 +866,29 @@ export default function ClientDetailPage({ clientId, onBack }) {
                   Google Drive
                 </a>
               )}
+            </div>
+            {/* Services */}
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {ALL_SERVICES.map(s => {
+                const active = (client.services || []).includes(s)
+                return (
+                  <button
+                    key={s}
+                    onClick={() => {
+                      const current = client.services || []
+                      const updated = active ? current.filter(x => x !== s) : [...current, s]
+                      dispatch({ type: 'UPDATE_CLIENT', payload: { id: clientId, services: updated } })
+                    }}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                      active
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : 'bg-white text-gray-500 border-gray-300 hover:border-indigo-300'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                )
+              })}
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">

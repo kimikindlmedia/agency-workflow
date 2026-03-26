@@ -8,7 +8,17 @@ function generateId() {
 // ── Normalize DB rows → frontend format ──────────────────────────────────────
 
 function normalizeClient(c) {
-  return { ...c, createdAt: c.created_at, driveUrl: c.drive_url || '', tasks: [] }
+  return { ...c, createdAt: c.created_at, driveUrl: c.drive_url || '', services: c.services || [], photoUrl: c.photo_url || '', tasks: [] }
+}
+
+function normalizePost(p) {
+  return { ...p, createdAt: p.created_at }
+}
+function normalizePostComment(c) {
+  return { ...c, postId: c.post_id, createdAt: c.created_at }
+}
+function normalizeWeeklyGoal(g) {
+  return { ...g, weekStart: g.week_start, createdAt: g.created_at }
 }
 
 function normalizeTask(t) {
@@ -19,6 +29,7 @@ function normalizeTask(t) {
     audioName: t.audio_name,
     contentType: t.content_type,
     createdAt: t.created_at,
+    assignee: t.assignee || '',
     outputs: [],
   }
 }
@@ -66,6 +77,9 @@ const initialState = {
   inquiries: [],
   inspiration: [],
   events: [],
+  posts: [],
+  postComments: [],
+  weeklyGoals: [],
   settings: { member1Name: 'Člen 1', member2Name: 'Člen 2' },
   loading: true,
   error: null,
@@ -80,7 +94,7 @@ export function AppProvider({ children }) {
 
   async function loadAll() {
     try {
-      const [clientsRes, tasksRes, outputsRes, inquiriesRes, inspirationRes, settingsRes, eventsRes] =
+      const [clientsRes, tasksRes, outputsRes, inquiriesRes, inspirationRes, settingsRes, eventsRes, postsRes, postCommentsRes, weeklyGoalsRes] =
         await Promise.all([
           supabase.from('clients').select('*').order('created_at'),
           supabase.from('tasks').select('*').order('created_at'),
@@ -89,6 +103,9 @@ export function AppProvider({ children }) {
           supabase.from('inspiration').select('*').order('created_at', { ascending: false }),
           supabase.from('settings').select('*').eq('id', 1).single(),
           supabase.from('events').select('*').order('date'),
+          supabase.from('posts').select('*').order('created_at', { ascending: false }),
+          supabase.from('post_comments').select('*').order('created_at'),
+          supabase.from('weekly_goals').select('*').order('created_at'),
         ])
 
       // Group outputs by task_id
@@ -119,6 +136,9 @@ export function AppProvider({ children }) {
         inquiries: (inquiriesRes.data || []).map(normalizeInquiry),
         inspiration: (inspirationRes.data || []).map(normalizeInspiration),
         events: (eventsRes.data || []).map(normalizeEvent),
+        posts: (postsRes.data || []).map(normalizePost),
+        postComments: (postCommentsRes.data || []).map(normalizePostComment),
+        weeklyGoals: (weeklyGoalsRes.data || []).map(normalizeWeeklyGoal),
         settings,
         loading: false,
         error: null,
@@ -144,11 +164,13 @@ export function AppProvider({ children }) {
           phone: action.payload.phone || '',
           color: action.payload.color || '#6366f1',
           drive_url: action.payload.driveUrl || '',
+          services: [],
+          photo_url: '',
           created_at: new Date().toISOString(),
         }
         setState(s => ({
           ...s,
-          clients: [...s.clients, { ...row, createdAt: row.created_at, driveUrl: row.drive_url, tasks: [] }],
+          clients: [...s.clients, { ...row, createdAt: row.created_at, driveUrl: row.drive_url, services: [], photoUrl: '', tasks: [] }],
         }))
         await supabase.from('clients').insert(row)
         break
@@ -167,6 +189,8 @@ export function AppProvider({ children }) {
         if (rest.phone     !== undefined) dbUpdate.phone     = rest.phone
         if (rest.color     !== undefined) dbUpdate.color     = rest.color
         if (rest.driveUrl  !== undefined) dbUpdate.drive_url = rest.driveUrl
+        if (rest.services  !== undefined) dbUpdate.services  = rest.services
+        if (rest.photoUrl  !== undefined) dbUpdate.photo_url = rest.photoUrl
         await supabase.from('clients').update(dbUpdate).eq('id', id)
         break
       }
@@ -202,6 +226,7 @@ export function AppProvider({ children }) {
           content_type: contentType || 'other',
           deadline: deadline || null,
           note: rest.note || '',
+          assignee: rest.assignee || '',
           created_at: new Date().toISOString(),
         }
         const frontendTask = {
@@ -210,6 +235,7 @@ export function AppProvider({ children }) {
           audioData: audioUrl,
           audioName: row.audio_name,
           contentType: row.content_type,
+          assignee: row.assignee,
           createdAt: row.created_at,
           outputs: [],
         }
@@ -240,6 +266,7 @@ export function AppProvider({ children }) {
         if (updates.note        !== undefined) dbUpdate.note         = updates.note
         if (updates.deadline    !== undefined) dbUpdate.deadline     = updates.deadline
         if (updates.contentType !== undefined) dbUpdate.content_type = updates.contentType
+        if (updates.assignee    !== undefined) dbUpdate.assignee     = updates.assignee
         await supabase.from('tasks').update(dbUpdate).eq('id', taskId)
         break
       }
@@ -527,6 +554,60 @@ export function AppProvider({ children }) {
           member1_name: action.payload.member1Name,
           member2_name: action.payload.member2Name,
         }).eq('id', 1)
+        break
+      }
+
+      // ── POSTS ──────────────────────────────────────────────────────────────
+
+      case 'ADD_POST': {
+        const id = generateId()
+        const row = { id, content: action.payload.content, author: action.payload.author, created_at: new Date().toISOString() }
+        const frontend = normalizePost(row)
+        setState(s => ({ ...s, posts: [frontend, ...s.posts] }))
+        await supabase.from('posts').insert(row)
+        break
+      }
+      case 'DELETE_POST': {
+        setState(s => ({ ...s, posts: s.posts.filter(p => p.id !== action.payload.id), postComments: s.postComments.filter(c => c.postId !== action.payload.id) }))
+        await supabase.from('posts').delete().eq('id', action.payload.id)
+        break
+      }
+      case 'ADD_POST_COMMENT': {
+        const id = generateId()
+        const row = { id, post_id: action.payload.postId, content: action.payload.content, author: action.payload.author, created_at: new Date().toISOString() }
+        const frontend = normalizePostComment(row)
+        setState(s => ({ ...s, postComments: [...s.postComments, frontend] }))
+        await supabase.from('post_comments').insert(row)
+        break
+      }
+      case 'DELETE_POST_COMMENT': {
+        setState(s => ({ ...s, postComments: s.postComments.filter(c => c.id !== action.payload.id) }))
+        await supabase.from('post_comments').delete().eq('id', action.payload.id)
+        break
+      }
+
+      // ── WEEKLY GOALS ───────────────────────────────────────────────────────
+
+      case 'ADD_WEEKLY_GOAL': {
+        const id = generateId()
+        const row = { id, title: action.payload.title, assignee: action.payload.assignee || 'team', done: false, week_start: action.payload.weekStart, created_at: new Date().toISOString() }
+        const frontend = normalizeWeeklyGoal(row)
+        setState(s => ({ ...s, weeklyGoals: [...s.weeklyGoals, frontend] }))
+        await supabase.from('weekly_goals').insert(row)
+        break
+      }
+      case 'UPDATE_WEEKLY_GOAL': {
+        const { id, updates } = action.payload
+        setState(s => ({ ...s, weeklyGoals: s.weeklyGoals.map(g => g.id === id ? { ...g, ...updates } : g) }))
+        const dbUpdate = {}
+        if (updates.done  !== undefined) dbUpdate.done  = updates.done
+        if (updates.title !== undefined) dbUpdate.title = updates.title
+        await supabase.from('weekly_goals').update(dbUpdate).eq('id', id)
+        break
+      }
+      case 'DELETE_WEEKLY_GOAL': {
+        setState(s => ({ ...s, weeklyGoals: s.weeklyGoals.filter(g => g.id !== action.payload.id) }))
+        await supabase.from('weekly_goals').delete().eq('id', action.payload.id)
         break
       }
 
