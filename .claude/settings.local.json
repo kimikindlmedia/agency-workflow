@@ -14,7 +14,10 @@
       "Bash(git push:*)",
       "Bash(gh auth:*)",
       "Bash(curl -s https://api.github.com/repos/kimikindlmedia/agency-workflow)",
-      "WebFetch(domain:agency-workflow-chi.vercel.app)"
+      "WebFetch(domain:agency-workflow-chi.vercel.app)",
+      "Bash(node -e \":*)",
+      "Bash(npm run:*)",
+      "Bash(/usr/local/bin/npm run:*)"
     ]
   }
 }

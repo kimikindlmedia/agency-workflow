@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useApp } from '../store.jsx'
 import Modal from '../components/Modal.jsx'
 import { StatusBadge, ContentTypeBadge } from '../components/Badge.jsx'
@@ -7,6 +7,15 @@ import ClientInspirationSection from '../components/ClientInspiration.jsx'
 import ClientScenariosSection from '../components/ClientScenarios.jsx'
 
 const ALL_SERVICES = ['Správa soc. sítí','Reels','Carousely','Natáčení','Edit','Scénáře','Focení']
+
+const TASK_TEMPLATES = [
+  { label: 'Správa IG – měsíc',      title: 'Správa Instagram – měsíční správa',    description: 'Tvorba a plánování obsahu pro Instagram na celý měsíc.', contentType: 'post' },
+  { label: 'Reels balíček (4×)',      title: 'Reels balíček – 4 videa',              description: '4× krátké video (Reels) včetně střihu a titulků.', contentType: 'reel' },
+  { label: 'Carousel posty (4×)',     title: 'Carousel posty – 4 ks',               description: '4× carousel post s grafikou a textem.', contentType: 'carousel' },
+  { label: 'Story série',             title: 'Story série',                          description: 'Série Instagram/Facebook Stories.', contentType: 'story' },
+  { label: 'Foto den',                title: 'Foto den – product/lifestyle',         description: 'Fotografování produktů nebo lifestylu.', contentType: 'other' },
+  { label: 'Scénáře na měsíc',        title: 'Scénáře – měsíční balíček',           description: 'Příprava scénářů pro videa na celý měsíc.', contentType: 'other' },
+]
 
 const AVATAR_COLORS = [
   '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316',
@@ -69,6 +78,7 @@ function TaskModal({ isOpen, onClose, clientId, task = null }) {
   const [errors, setErrors] = useState({})
   const [audioError, setAudioError] = useState('')
   const audioRef = useRef(null)
+  const [showTemplates, setShowTemplates] = useState(false)
 
   const handleChange = (field) => (e) => {
     setForm(f => ({ ...f, [field]: e.target.value }))
@@ -122,6 +132,40 @@ function TaskModal({ isOpen, onClose, clientId, task = null }) {
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title={isEdit ? 'Upravit požadavek' : 'Přidat požadavek'} size="lg">
       <form onSubmit={handleSubmit} className="space-y-4">
+        {!isEdit && (
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowTemplates(s => !s)}
+              className="flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              Ze šablony
+              <svg className={`w-3.5 h-3.5 transition-transform ${showTemplates ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {showTemplates && (
+              <div className="absolute top-7 left-0 z-10 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[220px]">
+                {TASK_TEMPLATES.map(tpl => (
+                  <button
+                    key={tpl.label}
+                    type="button"
+                    onClick={() => {
+                      setForm(f => ({ ...f, title: tpl.title, description: tpl.description, contentType: tpl.contentType }))
+                      setShowTemplates(false)
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                  >
+                    {tpl.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         <div className="form-group">
           <label className="label">Název <span className="text-red-500">*</span></label>
           <input
@@ -528,6 +572,13 @@ function EditClientModal({ isOpen, onClose, client }) {
   )
 }
 
+function formatDuration(minutes) {
+  if (minutes < 60) return `${minutes} min`
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  return m > 0 ? `${h}h ${m}m` : `${h}h`
+}
+
 // ── Task Card ────────────────────────────────────────────────────────────────
 function TaskCard({ task, clientId }) {
   const { dispatch, state: appState } = useApp()
@@ -535,6 +586,51 @@ function TaskCard({ task, clientId }) {
   const [showOutputModal, setShowOutputModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [timerActive, setTimerActive] = useState(false)
+  const [timerStart, setTimerStart] = useState(null)
+  const [timerElapsed, setTimerElapsed] = useState(0)
+  const [timerMember, setTimerMember] = useState('')
+  const [showTimerSetup, setShowTimerSetup] = useState(false)
+  const timerRef = useRef(null)
+
+  useEffect(() => {
+    if (timerActive) {
+      timerRef.current = setInterval(() => {
+        setTimerElapsed(Math.floor((Date.now() - timerStart) / 1000))
+      }, 1000)
+    }
+    return () => clearInterval(timerRef.current)
+  }, [timerActive, timerStart])
+
+  const startTimer = (member) => {
+    setTimerMember(member)
+    setTimerStart(Date.now())
+    setTimerElapsed(0)
+    setTimerActive(true)
+    setShowTimerSetup(false)
+  }
+
+  const stopTimer = () => {
+    clearInterval(timerRef.current)
+    setTimerActive(false)
+    const durationMinutes = Math.max(1, Math.round(timerElapsed / 60))
+    const now = new Date().toISOString()
+    dispatch({
+      type: 'ADD_TIME_LOG',
+      payload: {
+        taskId: task.id,
+        member: timerMember,
+        startedAt: new Date(timerStart).toISOString(),
+        endedAt: now,
+        durationMinutes,
+      },
+    })
+    setTimerElapsed(0)
+    setTimerStart(null)
+  }
+
+  const taskTimeLogs = appState.timeLogs.filter(l => l.taskId === task.id)
+  const totalMinutes = taskTimeLogs.reduce((sum, l) => sum + (l.durationMinutes || 0), 0)
 
   const handleStatusChange = (e) => {
     dispatch({
@@ -587,6 +683,11 @@ function TaskCard({ task, clientId }) {
             )}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            {totalMinutes > 0 && !timerActive && (
+              <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full border border-purple-100">
+                ⏱ {formatDuration(totalMinutes)}
+              </span>
+            )}
             {task.outputs.length > 0 && (
               <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full border border-green-100">
                 {task.outputs.length} výstupů
@@ -735,6 +836,72 @@ function TaskCard({ task, clientId }) {
             )}
           </div>
 
+          {/* Timer */}
+          <div className="pt-2 border-t border-gray-100">
+            {timerActive ? (
+              <div className="flex items-center gap-3 p-2.5 bg-purple-50 rounded-lg border border-purple-100">
+                <div className="flex items-center gap-2 flex-1">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                  <span className="text-sm font-mono font-bold text-purple-700">
+                    {String(Math.floor(timerElapsed / 3600)).padStart(2,'0')}:{String(Math.floor((timerElapsed % 3600) / 60)).padStart(2,'0')}:{String(timerElapsed % 60).padStart(2,'0')}
+                  </span>
+                  <span className="text-xs text-purple-500">· {appState.settings[timerMember + 'Name'] || timerMember}</span>
+                </div>
+                <button onClick={stopTimer} className="text-xs text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg font-medium transition-colors">
+                  Zastavit
+                </button>
+              </div>
+            ) : showTimerSetup ? (
+              <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg border border-gray-200">
+                <span className="text-xs text-gray-600 flex-shrink-0">Kdo pracuje?</span>
+                {[
+                  { key: 'member1', name: appState.settings.member1Name },
+                  { key: 'member2', name: appState.settings.member2Name },
+                  { key: 'member3', name: appState.settings.member3Name },
+                ].map(m => (
+                  <button key={m.key} onClick={() => startTimer(m.key)} className="text-xs text-indigo-600 border border-indigo-200 hover:bg-indigo-50 px-2 py-1 rounded-lg transition-colors">
+                    {m.name}
+                  </button>
+                ))}
+                <button onClick={() => setShowTimerSetup(false)} className="text-xs text-gray-400 hover:text-gray-600 ml-auto">Zrušit</button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowTimerSetup(true)}
+                  className="flex items-center gap-1.5 text-xs text-purple-600 hover:text-purple-800 font-medium px-2 py-1.5 rounded-lg hover:bg-purple-50 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Spustit stopky
+                </button>
+                {totalMinutes > 0 && (
+                  <span className="text-xs text-gray-400">celkem {formatDuration(totalMinutes)}</span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Time log history */}
+          {taskTimeLogs.length > 0 && !timerActive && (
+            <details className="text-xs">
+              <summary className="text-gray-400 cursor-pointer hover:text-gray-600">Historie stopek ({taskTimeLogs.length})</summary>
+              <div className="mt-2 space-y-1">
+                {taskTimeLogs.map(log => (
+                  <div key={log.id} className="flex items-center gap-2 text-gray-500">
+                    <span>{appState.settings[log.member + 'Name'] || log.member}</span>
+                    <span>·</span>
+                    <span>{formatDuration(log.durationMinutes)}</span>
+                    <span className="text-gray-300">·</span>
+                    <span>{new Date(log.startedAt).toLocaleDateString('cs-CZ', { day: '2-digit', month: '2-digit' })}</span>
+                    <button onClick={() => dispatch({ type: 'DELETE_TIME_LOG', payload: { id: log.id } })} className="ml-auto text-gray-300 hover:text-red-400">×</button>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+
           {/* Task actions */}
           <div className="flex gap-2 pt-2 border-t border-gray-100">
             <button
@@ -786,6 +953,15 @@ export default function ClientDetailPage({ clientId, onBack }) {
   const [confirmDeleteClient, setConfirmDeleteClient] = useState(false)
   const [statusFilter, setStatusFilter] = useState('all')
   const [activeSection, setActiveSection] = useState('tasks')
+  const [portalCopied, setPortalCopied] = useState(false)
+
+  const copyPortalLink = () => {
+    const url = `${window.location.origin}${window.location.pathname}#portal-${clientId}`
+    navigator.clipboard.writeText(url).then(() => {
+      setPortalCopied(true)
+      setTimeout(() => setPortalCopied(false), 2500)
+    })
+  }
 
   if (!client) {
     return (
@@ -893,7 +1069,17 @@ export default function ClientDetailPage({ clientId, onBack }) {
               })}
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+            <button
+              onClick={copyPortalLink}
+              className="btn-secondary text-sm flex items-center gap-1.5"
+              title="Sdílet portál klienta"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              </svg>
+              {portalCopied ? 'Zkopírováno!' : 'Portál'}
+            </button>
             <button
               onClick={() => setShowEditClient(true)}
               className="btn-secondary text-sm"

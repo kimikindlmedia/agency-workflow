@@ -9,6 +9,8 @@ export default function SettingsPage() {
     member3Name: state.settings.member3Name,
   })
   const [saved, setSaved] = useState(false)
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('claude_api_key') || '')
+  const [apiKeySaved, setApiKeySaved] = useState(false)
 
   const handleChange = (field) => (e) => {
     setForm(f => ({ ...f, [field]: e.target.value }))
@@ -103,6 +105,44 @@ export default function SettingsPage() {
             )}
           </div>
         </form>
+      </div>
+
+      {/* Claude API key */}
+      <div className="card p-6">
+        <h2 className="text-base font-semibold text-gray-900 mb-1">Claude API klíč</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Potřebný pro AI generátor scénářů. Klíč se ukládá pouze lokálně v prohlížeči.
+        </p>
+        <div className="flex gap-2">
+          <input
+            className="input flex-1"
+            type="password"
+            placeholder="sk-ant-..."
+            value={apiKey}
+            onChange={e => { setApiKey(e.target.value); setApiKeySaved(false) }}
+          />
+          <button
+            className="btn-primary flex-shrink-0"
+            onClick={() => {
+              localStorage.setItem('claude_api_key', apiKey)
+              setApiKeySaved(true)
+              setTimeout(() => setApiKeySaved(false), 3000)
+            }}
+          >
+            Uložit
+          </button>
+        </div>
+        {apiKeySaved && (
+          <p className="text-sm text-green-600 font-medium mt-2 flex items-center gap-1">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+            </svg>
+            API klíč uložen!
+          </p>
+        )}
+        <p className="text-xs text-gray-400 mt-2">
+          Klíč získáš na console.anthropic.com
+        </p>
       </div>
 
       {/* Data info */}

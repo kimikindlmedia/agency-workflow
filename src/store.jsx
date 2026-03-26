@@ -21,6 +21,17 @@ function normalizeWeeklyGoal(g) {
   return { ...g, weekStart: g.week_start, createdAt: g.created_at }
 }
 
+function normalizeTimeLog(l) {
+  return {
+    ...l,
+    taskId: l.task_id,
+    startedAt: l.started_at,
+    endedAt: l.ended_at,
+    durationMinutes: l.duration_minutes,
+    createdAt: l.created_at,
+  }
+}
+
 function normalizeTask(t) {
   return {
     ...t,
@@ -91,6 +102,7 @@ const initialState = {
   postComments: [],
   weeklyGoals: [],
   scenarios: [],
+  timeLogs: [],
   settings: { member1Name: 'Člen 1', member2Name: 'Člen 2', member3Name: 'Patrik' },
   loading: true,
   error: null,
@@ -105,7 +117,7 @@ export function AppProvider({ children }) {
 
   async function loadAll() {
     try {
-      const [clientsRes, tasksRes, outputsRes, inquiriesRes, inspirationRes, settingsRes, eventsRes, postsRes, postCommentsRes, weeklyGoalsRes, scenariosRes] =
+      const [clientsRes, tasksRes, outputsRes, inquiriesRes, inspirationRes, settingsRes, eventsRes, postsRes, postCommentsRes, weeklyGoalsRes, scenariosRes, timeLogsRes] =
         await Promise.all([
           supabase.from('clients').select('*').order('created_at'),
           supabase.from('tasks').select('*').order('created_at'),
@@ -118,6 +130,7 @@ export function AppProvider({ children }) {
           supabase.from('post_comments').select('*').order('created_at'),
           supabase.from('weekly_goals').select('*').order('created_at'),
           supabase.from('scenarios').select('*').order('created_at', { ascending: false }),
+          supabase.from('time_logs').select('*').order('created_at', { ascending: false }),
         ])
 
       // Group outputs by task_id
@@ -156,6 +169,7 @@ export function AppProvider({ children }) {
         postComments: (postCommentsRes.data || []).map(normalizePostComment),
         weeklyGoals: (weeklyGoalsRes.data || []).map(normalizeWeeklyGoal),
         scenarios: (scenariosRes.data || []).map(normalizeScenario),
+        timeLogs: (timeLogsRes.data || []).map(normalizeTimeLog),
         settings,
         loading: false,
         error: null,
@@ -667,6 +681,32 @@ export function AppProvider({ children }) {
       case 'DELETE_SCENARIO': {
         setState(s => ({ ...s, scenarios: s.scenarios.filter(sc => sc.id !== action.payload.id) }))
         await supabase.from('scenarios').delete().eq('id', action.payload.id)
+        break
+      }
+
+      // ── TIME LOGS ──────────────────────────────────────────────────────────
+
+      case 'ADD_TIME_LOG': {
+        const id = generateId()
+        const { taskId, member, startedAt, endedAt, durationMinutes, note } = action.payload
+        const row = {
+          id,
+          task_id: taskId,
+          member,
+          started_at: startedAt,
+          ended_at: endedAt,
+          duration_minutes: durationMinutes,
+          note: note || '',
+          created_at: new Date().toISOString(),
+        }
+        const frontend = normalizeTimeLog(row)
+        setState(s => ({ ...s, timeLogs: [frontend, ...s.timeLogs] }))
+        await supabase.from('time_logs').insert(row)
+        break
+      }
+      case 'DELETE_TIME_LOG': {
+        setState(s => ({ ...s, timeLogs: s.timeLogs.filter(l => l.id !== action.payload.id) }))
+        await supabase.from('time_logs').delete().eq('id', action.payload.id)
         break
       }
 

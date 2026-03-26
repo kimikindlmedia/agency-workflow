@@ -2,6 +2,149 @@ import React, { useState, useMemo } from 'react'
 import { useApp } from '../store.jsx'
 import Modal from './Modal.jsx'
 
+// ── AI Scenario Generator ────────────────────────────────────────────────────
+function AIScenarioModal({ isOpen, onClose, clientId }) {
+  const { dispatch } = useApp()
+  const [brief, setBrief] = useState('')
+  const [category, setCategory] = useState('other')
+  const [loading, setLoading] = useState(false)
+  const [ideas, setIdeas] = useState([])
+  const [error, setError] = useState('')
+
+  const generate = async () => {
+    const apiKey = localStorage.getItem('claude_api_key')
+    if (!apiKey) {
+      setError('Nastav Claude API klíč v Nastavení.')
+      return
+    }
+    if (!brief.trim()) {
+      setError('Zadej brief pro generování.')
+      return
+    }
+    setLoading(true)
+    setError('')
+    setIdeas([])
+    try {
+      const catLabel = CATEGORIES.find(c => c.value === category)?.label || 'Ostatní'
+      const prompt = `Jsi kreativní režisér a scénárista pro social media (Instagram Reels, TikTok). Vygeneruj 4 konkrétní nápady na videa (scénáře) pro klienta.
+
+Brief: ${brief}
+Lokace/Kategorie: ${catLabel}
+
+Vrať odpověď jako JSON pole objektů s klíči "title" (krátký název) a "content" (popis scénáře, max 3-4 věty, konkrétní akce/záběry). Pouze JSON, žádný jiný text.`
+
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 1024,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      })
+      if (!res.ok) throw new Error(`API chyba: ${res.status}`)
+      const data = await res.json()
+      const text = data.content[0].text
+      const parsed = JSON.parse(text)
+      setIdeas(parsed)
+    } catch (e) {
+      setError(`Chyba: ${e.message}`)
+    }
+    setLoading(false)
+  }
+
+  const addScenario = (idea) => {
+    dispatch({ type: 'ADD_SCENARIO', payload: { clientId, title: idea.title, content: idea.content, category, status: 'idea' } })
+  }
+
+  const handleClose = () => {
+    setBrief('')
+    setIdeas([])
+    setError('')
+    setLoading(false)
+    onClose()
+  }
+
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose} title="AI generátor scénářů" size="lg">
+      <div className="space-y-4">
+        <div className="form-group">
+          <label className="label">Brief klienta</label>
+          <textarea
+            className="input resize-none"
+            rows={3}
+            placeholder="Např: Instagram pro kavárnu, cílová skupina 20-35 let, zaměření na latte art a útulnou atmosféru..."
+            value={brief}
+            onChange={e => setBrief(e.target.value)}
+            autoFocus
+          />
+        </div>
+        <div className="form-group">
+          <label className="label">Kategorie</label>
+          <div className="flex flex-wrap gap-1.5">
+            {CATEGORIES.map(cat => (
+              <button
+                key={cat.value}
+                type="button"
+                onClick={() => setCategory(cat.value)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                  category === cat.value
+                    ? 'bg-orange-500 text-white border-orange-500'
+                    : 'bg-white text-gray-600 border-gray-300 hover:border-orange-300'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {error && <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">{error}</p>}
+
+        <button
+          onClick={generate}
+          disabled={loading}
+          className="btn-primary w-full"
+        >
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Generuji nápady...
+            </span>
+          ) : '✨ Vygenerovat nápady'}
+        </button>
+
+        {ideas.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-sm font-semibold text-gray-700">Vygenerované nápady — klikni pro přidání:</p>
+            {ideas.map((idea, i) => (
+              <div key={i} className="p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-900 text-sm">{idea.title}</p>
+                    <p className="text-xs text-gray-600 mt-1 leading-relaxed">{idea.content}</p>
+                  </div>
+                  <button
+                    onClick={() => addScenario(idea)}
+                    className="flex-shrink-0 text-xs text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg font-medium transition-colors"
+                  >
+                    Přidat
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Modal>
+  )
+}
+
 const CATEGORIES = [
   { value: 'studio',    label: 'Studio' },
   { value: 'outdoor',   label: 'Venku' },
@@ -313,6 +456,7 @@ function ScenarioCard({ scenario }) {
 export default function ClientScenariosSection({ clientId }) {
   const { state } = useApp()
   const [showAdd, setShowAdd] = useState(false)
+  const [showAI, setShowAI] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
 
@@ -338,12 +482,20 @@ export default function ClientScenariosSection({ clientId }) {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <p className="text-sm text-gray-500">{clientScenarios.length} scénářů</p>
-        <button onClick={() => setShowAdd(true)} className="btn-primary text-sm">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Přidat scénář
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowAI(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border border-purple-200 text-purple-700 bg-purple-50 hover:bg-purple-100 transition-colors"
+          >
+            ✨ AI nápady
+          </button>
+          <button onClick={() => setShowAdd(true)} className="btn-primary text-sm">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Přidat scénář
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -405,6 +557,7 @@ export default function ClientScenariosSection({ clientId }) {
       )}
 
       <ScenarioModal isOpen={showAdd} onClose={() => setShowAdd(false)} clientId={clientId} />
+      <AIScenarioModal isOpen={showAI} onClose={() => setShowAI(false)} clientId={clientId} />
     </div>
   )
 }

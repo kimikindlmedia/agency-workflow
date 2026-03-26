@@ -83,6 +83,18 @@ INSERT INTO settings (id, member1_name, member2_name)
 VALUES (1, 'Člen 1', 'Člen 2')
 ON CONFLICT (id) DO NOTHING;
 
+-- TIME LOGS
+CREATE TABLE IF NOT EXISTS time_logs (
+  id                TEXT PRIMARY KEY,
+  task_id           TEXT REFERENCES tasks(id) ON DELETE CASCADE,
+  member            TEXT NOT NULL,
+  started_at        TIMESTAMPTZ NOT NULL,
+  ended_at          TIMESTAMPTZ,
+  duration_minutes  INTEGER,
+  note              TEXT DEFAULT '',
+  created_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ── RLS POLICIES (povol přístup bez přihlášení) ──────────────────────────────
 
 ALTER TABLE clients     ENABLE ROW LEVEL SECURITY;
@@ -91,6 +103,7 @@ ALTER TABLE outputs     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE inquiries   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE inspiration ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE time_logs   ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "allow_all_clients"     ON clients     FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "allow_all_tasks"       ON tasks       FOR ALL TO anon USING (true) WITH CHECK (true);
@@ -98,3 +111,4 @@ CREATE POLICY "allow_all_outputs"     ON outputs     FOR ALL TO anon USING (true
 CREATE POLICY "allow_all_inquiries"   ON inquiries   FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "allow_all_inspiration" ON inspiration FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "allow_all_settings"    ON settings    FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "allow_all_time_logs"   ON time_logs   FOR ALL TO anon USING (true) WITH CHECK (true);

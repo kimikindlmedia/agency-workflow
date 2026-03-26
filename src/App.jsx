@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { AppProvider, useApp } from './store.jsx'
 import ClientsPage from './pages/ClientsPage.jsx'
 import ClientDetailPage from './pages/ClientDetailPage.jsx'
@@ -7,15 +7,26 @@ import CalendarPage from './pages/CalendarPage.jsx'
 import SettingsPage from './pages/SettingsPage.jsx'
 import TeamPage from './pages/TeamPage.jsx'
 import WallPage from './pages/WallPage.jsx'
+import DashboardPage from './pages/DashboardPage.jsx'
+import PortalPage from './pages/PortalPage.jsx'
 
 const TABS = [
-  { id: 'clients',   label: 'Klienti',   icon: UsersIcon },
-  { id: 'inquiries', label: 'Poptávky',  icon: InboxIcon },
-  { id: 'calendar',  label: 'Kalendář',  icon: CalendarIcon },
-  { id: 'team',      label: 'Tým',       icon: TeamIcon },
-  { id: 'wall',      label: 'Zeď',       icon: WallIcon },
-  { id: 'settings',  label: 'Nastavení', icon: CogIcon },
+  { id: 'dashboard', label: 'Dashboard',  icon: DashboardIcon },
+  { id: 'clients',   label: 'Klienti',    icon: UsersIcon },
+  { id: 'inquiries', label: 'Poptávky',   icon: InboxIcon },
+  { id: 'calendar',  label: 'Kalendář',   icon: CalendarIcon },
+  { id: 'team',      label: 'Tým',        icon: TeamIcon },
+  { id: 'wall',      label: 'Zeď',        icon: WallIcon },
+  { id: 'settings',  label: 'Nastavení',  icon: CogIcon },
 ]
+
+function DashboardIcon({ className }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zm0 7a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7zM4 13a1 1 0 011-1h4a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6z" />
+    </svg>
+  )
+}
 
 function UsersIcon({ className }) {
   return (
@@ -68,8 +79,33 @@ function WallIcon({ className }) {
 
 function AppContent() {
   const { state } = useApp()
-  const [activeTab, setActiveTab] = useState('clients')
+  const [activeTab, setActiveTab] = useState('dashboard')
   const [selectedClientId, setSelectedClientId] = useState(null)
+  const [portalClientId, setPortalClientId] = useState(() => {
+    const hash = window.location.hash
+    return hash.startsWith('#portal-') ? hash.slice('#portal-'.length) : null
+  })
+
+  useEffect(() => {
+    const handleHash = () => {
+      const hash = window.location.hash
+      setPortalClientId(hash.startsWith('#portal-') ? hash.slice('#portal-'.length) : null)
+    }
+    window.addEventListener('hashchange', handleHash)
+    return () => window.removeEventListener('hashchange', handleHash)
+  }, [])
+
+  // Portal mode — full-screen read-only client view
+  if (portalClientId) {
+    if (state.loading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )
+    }
+    return <PortalPage clientId={portalClientId} />
+  }
 
   if (state.loading) {
     return (
@@ -108,6 +144,7 @@ function AppContent() {
   }
 
   const renderContent = () => {
+    if (activeTab === 'dashboard') return <DashboardPage />
     if (activeTab === 'clients') {
       if (selectedClientId) {
         return (
@@ -154,6 +191,7 @@ function AppContent() {
                     onClick={() => {
                       setActiveTab(tab.id)
                       if (tab.id !== 'clients') setSelectedClientId(null)
+                      window.location.hash = ''
                     }}
                     className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex-shrink-0 ${
                       isActive

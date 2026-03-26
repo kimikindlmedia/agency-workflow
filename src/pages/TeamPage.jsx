@@ -45,6 +45,21 @@ export default function TeamPage() {
     )
   }, [state.clients])
 
+  // Time logs this week
+  const weekTimeLogs = useMemo(() => {
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekEnd.getDate() + 7)
+    return (state.timeLogs || []).filter(l => {
+      const d = l.startedAt?.slice(0, 10)
+      return d >= weekStart && d < weekEnd.toISOString().slice(0, 10)
+    })
+  }, [state.timeLogs, weekStart])
+
+  const getMemberHours = (memberKey) => {
+    const mins = weekTimeLogs.filter(l => l.member === memberKey).reduce((s, l) => s + (l.durationMinutes || 0), 0)
+    return mins > 0 ? (mins < 60 ? `${mins} min` : `${Math.floor(mins / 60)}h ${mins % 60 > 0 ? (mins % 60) + 'm' : ''}`.trim()) : null
+  }
+
   // Group tasks by assignee
   const tasksByMember = (memberKey) =>
     allTasks.filter(t => t.assignee === memberKey || t.assignee === 'both')
@@ -95,6 +110,7 @@ export default function TeamPage() {
     const stats = getMemberStats(memberKey)
     const activeTasks = tasks.filter(t => t.status !== 'done')
     const doneTasks = tasks.filter(t => t.status === 'done')
+    const weekHours = getMemberHours(memberKey)
 
     return (
       <div className="card p-4 space-y-3">
@@ -106,7 +122,10 @@ export default function TeamPage() {
             </div>
             <div>
               <p className="font-semibold text-gray-900">{memberName}</p>
-              <p className="text-xs text-gray-500">{stats.active} aktivních · {stats.done} hotových</p>
+              <p className="text-xs text-gray-500">
+                {stats.active} aktivních · {stats.done} hotových
+                {weekHours && <span className="text-purple-500"> · ⏱ {weekHours} tento týden</span>}
+              </p>
             </div>
           </div>
           {/* Progress bar */}
