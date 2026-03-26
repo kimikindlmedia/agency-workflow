@@ -72,6 +72,7 @@ function normalizeScenario(s) {
     clientId: s.client_id,
     inspirationUrl: s.inspiration_url || '',
     tags: s.tags || [],
+    author: s.author || '',
     createdAt: s.created_at,
   }
 }
@@ -84,7 +85,12 @@ function normalizeInspiration(item) {
     fileType: item.file_type,
     createdAt: item.created_at,
     clientId: item.client_id || null,
+    author: item.author || '',
   }
+}
+
+function normalizeInquiryComment(c) {
+  return { ...c, inquiryId: c.inquiry_id, createdAt: c.created_at }
 }
 
 function normalizeEvent(e) {
@@ -103,6 +109,7 @@ const initialState = {
   weeklyGoals: [],
   scenarios: [],
   timeLogs: [],
+  inquiryComments: [],
   settings: { member1Name: 'Člen 1', member2Name: 'Člen 2', member3Name: 'Patrik' },
   loading: true,
   error: null,
@@ -112,12 +119,17 @@ const AppContext = createContext(null)
 
 export function AppProvider({ children }) {
   const [state, setState] = useState(initialState)
+  const [activeMember, setActiveMemberState] = useState(() => localStorage.getItem('activeMember') || '')
+  const setActiveMember = (m) => {
+    localStorage.setItem('activeMember', m)
+    setActiveMemberState(m)
+  }
 
   useEffect(() => { loadAll() }, [])
 
   async function loadAll() {
     try {
-      const [clientsRes, tasksRes, outputsRes, inquiriesRes, inspirationRes, settingsRes, eventsRes, postsRes, postCommentsRes, weeklyGoalsRes, scenariosRes, timeLogsRes] =
+      const [clientsRes, tasksRes, outputsRes, inquiriesRes, inspirationRes, settingsRes, eventsRes, postsRes, postCommentsRes, weeklyGoalsRes, scenariosRes, timeLogsRes, inquiryCommentsRes] =
         await Promise.all([
           supabase.from('clients').select('*').order('created_at'),
           supabase.from('tasks').select('*').order('created_at'),
@@ -131,6 +143,7 @@ export function AppProvider({ children }) {
           supabase.from('weekly_goals').select('*').order('created_at'),
           supabase.from('scenarios').select('*').order('created_at', { ascending: false }),
           supabase.from('time_logs').select('*').order('created_at', { ascending: false }),
+          supabase.from('inquiry_comments').select('*').order('created_at'),
         ])
 
       // Group outputs by task_id
@@ -170,6 +183,7 @@ export function AppProvider({ children }) {
         weeklyGoals: (weeklyGoalsRes.data || []).map(normalizeWeeklyGoal),
         scenarios: (scenariosRes.data || []).map(normalizeScenario),
         timeLogs: (timeLogsRes.data || []).map(normalizeTimeLog),
+        inquiryComments: (inquiryCommentsRes.data || []).map(normalizeInquiryComment),
         settings,
         loading: false,
         error: null,
@@ -487,6 +501,7 @@ export function AppProvider({ children }) {
           file_type: fileType || null,
           url: rest.url || null,
           client_id: rest.clientId || null,
+          author: rest.author || '',
           created_at: new Date().toISOString(),
         }
         const frontend = {
@@ -656,6 +671,7 @@ export function AppProvider({ children }) {
           status: action.payload.status || 'idea',
           tags: action.payload.tags || [],
           inspiration_url: action.payload.inspirationUrl || '',
+          author: action.payload.author || '',
           created_at: new Date().toISOString(),
         }
         const frontend = normalizeScenario(row)
@@ -710,13 +726,29 @@ export function AppProvider({ children }) {
         break
       }
 
+      // ── INQUIRY COMMENTS ───────────────────────────────────────────────────
+
+      case 'ADD_INQUIRY_COMMENT': {
+        const id = generateId()
+        const row = { id, inquiry_id: action.payload.inquiryId, content: action.payload.content, author: action.payload.author, created_at: new Date().toISOString() }
+        const frontend = normalizeInquiryComment(row)
+        setState(s => ({ ...s, inquiryComments: [...s.inquiryComments, frontend] }))
+        await supabase.from('inquiry_comments').insert(row)
+        break
+      }
+      case 'DELETE_INQUIRY_COMMENT': {
+        setState(s => ({ ...s, inquiryComments: s.inquiryComments.filter(c => c.id !== action.payload.id) }))
+        await supabase.from('inquiry_comments').delete().eq('id', action.payload.id)
+        break
+      }
+
       default:
         break
     }
   }, [])
 
   return (
-    <AppContext.Provider value={{ state, dispatch }}>
+    <AppContext.Provider value={{ state, dispatch, activeMember, setActiveMember }}>
       {children}
     </AppContext.Provider>
   )

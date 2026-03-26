@@ -77,9 +77,45 @@ function WallIcon({ className }) {
   )
 }
 
+function MemberPicker() {
+  const { state, activeMember, setActiveMember } = useApp()
+  const { member1Name, member2Name, member3Name } = state.settings
+  const members = [
+    { key: 'member1', name: member1Name },
+    { key: 'member2', name: member2Name },
+    { key: 'member3', name: member3Name },
+  ]
+  if (activeMember) return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mx-auto mb-4">
+          <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+        </div>
+        <h2 className="text-xl font-bold text-gray-900 mb-1">Kdo jsi?</h2>
+        <p className="text-sm text-gray-500 mb-6">Vyber svůj profil — appka si tě zapamatuje.</p>
+        <div className="space-y-2">
+          {members.map(m => (
+            <button
+              key={m.key}
+              onClick={() => setActiveMember(m.key)}
+              className="w-full py-3 px-4 rounded-xl font-semibold text-sm border-2 border-gray-100 hover:border-indigo-400 hover:bg-indigo-50 text-gray-700 hover:text-indigo-700 transition-all"
+            >
+              {m.name}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function AppContent() {
-  const { state } = useApp()
+  const { state, activeMember, setActiveMember } = useApp()
   const [activeTab, setActiveTab] = useState('dashboard')
+  const [showMemberMenu, setShowMemberMenu] = useState(false)
   const [selectedClientId, setSelectedClientId] = useState(null)
   const [portalClientId, setPortalClientId] = useState(() => {
     const hash = window.location.hash
@@ -166,6 +202,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
+      <MemberPicker />
       {/* Top Navigation */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -181,7 +218,7 @@ function AppContent() {
             </div>
 
             {/* Tabs */}
-            <nav className="flex gap-1 overflow-x-auto flex-1">
+            <nav className="flex gap-1 overflow-x-auto flex-1 mr-2">
               {TABS.map(tab => {
                 const Icon = tab.icon
                 const isActive = activeTab === tab.id
@@ -205,6 +242,34 @@ function AppContent() {
                 )
               })}
             </nav>
+            {/* Active member */}
+            {activeMember && (
+              <div className="relative flex-shrink-0">
+                <button
+                  onClick={() => setShowMemberMenu(m => !m)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-semibold hover:bg-indigo-100 transition-colors border border-indigo-200"
+                >
+                  <span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold">
+                    {(state.settings[activeMember + 'Name'] || '?')[0]}
+                  </span>
+                  <span className="hidden sm:inline">{state.settings[activeMember + 'Name']}</span>
+                </button>
+                {showMemberMenu && (
+                  <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-50 min-w-[140px]">
+                    <p className="px-3 py-1 text-xs text-gray-400 font-medium">Přepnout na:</p>
+                    {['member1', 'member2', 'member3'].map(mk => (
+                      <button
+                        key={mk}
+                        onClick={() => { setActiveMember(mk); setShowMemberMenu(false) }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${activeMember === mk ? 'font-semibold text-indigo-600' : 'text-gray-700'}`}
+                      >
+                        {state.settings[mk + 'Name']}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </header>

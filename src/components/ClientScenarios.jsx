@@ -2,9 +2,16 @@ import React, { useState, useMemo } from 'react'
 import { useApp } from '../store.jsx'
 import Modal from './Modal.jsx'
 
+function authorName(settings, author) {
+  if (author === 'member1') return settings.member1Name
+  if (author === 'member2') return settings.member2Name
+  if (author === 'member3') return settings.member3Name
+  return author || ''
+}
+
 // ── AI Scenario Generator ────────────────────────────────────────────────────
 function AIScenarioModal({ isOpen, onClose, clientId }) {
-  const { dispatch } = useApp()
+  const { dispatch, activeMember } = useApp()
   const [brief, setBrief] = useState('')
   const [category, setCategory] = useState('other')
   const [loading, setLoading] = useState(false)
@@ -59,7 +66,7 @@ Vrať odpověď jako JSON pole objektů s klíči "title" (krátký název) a "c
   }
 
   const addScenario = (idea) => {
-    dispatch({ type: 'ADD_SCENARIO', payload: { clientId, title: idea.title, content: idea.content, category, status: 'idea' } })
+    dispatch({ type: 'ADD_SCENARIO', payload: { clientId, title: idea.title, content: idea.content, category, status: 'idea', author: activeMember } })
   }
 
   const handleClose = () => {
@@ -184,7 +191,7 @@ function StatusBadge({ status }) {
 }
 
 function ScenarioModal({ isOpen, onClose, clientId, scenario = null }) {
-  const { dispatch } = useApp()
+  const { dispatch, activeMember } = useApp()
   const isEdit = !!scenario
   const empty = { title: '', content: '', category: 'other', status: 'idea', tags: '', inspirationUrl: '' }
   const [form, setForm] = useState(scenario ? {
@@ -212,7 +219,7 @@ function ScenarioModal({ isOpen, onClose, clientId, scenario = null }) {
     if (isEdit) {
       dispatch({ type: 'UPDATE_SCENARIO', payload: { id: scenario.id, updates: payload } })
     } else {
-      dispatch({ type: 'ADD_SCENARIO', payload: { clientId, ...payload } })
+      dispatch({ type: 'ADD_SCENARIO', payload: { clientId, ...payload, author: activeMember } })
     }
     handleClose()
   }
@@ -323,7 +330,7 @@ function ScenarioModal({ isOpen, onClose, clientId, scenario = null }) {
 }
 
 function ScenarioCard({ scenario }) {
-  const { dispatch } = useApp()
+  const { dispatch, state } = useApp()
   const [expanded, setExpanded] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -347,6 +354,9 @@ function ScenarioCard({ scenario }) {
             <h4 className="font-semibold text-gray-900">{scenario.title}</h4>
             {scenario.content && !expanded && (
               <p className="text-sm text-gray-500 mt-1 line-clamp-2">{scenario.content}</p>
+            )}
+            {scenario.author && (
+              <p className="text-xs text-gray-400 mt-1">{authorName(state.settings, scenario.author)}</p>
             )}
             {scenario.tags && scenario.tags.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-2">

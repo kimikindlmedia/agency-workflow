@@ -3,6 +3,13 @@ import { useApp } from '../store.jsx'
 import Modal from './Modal.jsx'
 import { ContentTypeBadge, TagBadge } from './Badge.jsx'
 
+function authorName(settings, author) {
+  if (author === 'member1') return settings.member1Name
+  if (author === 'member2') return settings.member2Name
+  if (author === 'member3') return settings.member3Name
+  return author || ''
+}
+
 const TYPE_OPTIONS = [
   { value: 'carousel', label: 'Carousel' },
   { value: 'reel',     label: 'Reel' },
@@ -29,7 +36,7 @@ function formatDate(isoString) {
 
 // ── Add / Edit Inspiration Modal ─────────────────────────────────────────────
 function InspirationModal({ isOpen, onClose, item = null, clientId }) {
-  const { dispatch } = useApp()
+  const { dispatch, activeMember } = useApp()
   const isEdit = !!item
   const [form, setForm] = useState({
     title: item?.title || '',
@@ -90,7 +97,7 @@ function InspirationModal({ isOpen, onClose, item = null, clientId }) {
     if (isEdit) {
       dispatch({ type: 'UPDATE_INSPIRATION', payload: { id: item.id, updates: { ...payload, clientId: item.clientId } } })
     } else {
-      dispatch({ type: 'ADD_INSPIRATION', payload: { ...payload, clientId } })
+      dispatch({ type: 'ADD_INSPIRATION', payload: { ...payload, clientId, author: activeMember } })
     }
     handleClose()
   }
@@ -231,7 +238,7 @@ function InspirationModal({ isOpen, onClose, item = null, clientId }) {
 
 // ── Inspiration Card ──────────────────────────────────────────────────────────
 function InspirationCard({ item }) {
-  const { dispatch } = useApp()
+  const { dispatch, state } = useApp()
   const [showEdit, setShowEdit] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [expanded, setExpanded] = useState(false)
@@ -273,6 +280,9 @@ function InspirationCard({ item }) {
               <ContentTypeBadge type={item.type} />
             </div>
             <h3 className="font-semibold text-gray-900 leading-tight">{item.title}</h3>
+            {item.author && (
+              <p className="text-xs text-gray-400 mt-0.5">{authorName(state.settings, item.author)}</p>
+            )}
           </div>
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
             <button

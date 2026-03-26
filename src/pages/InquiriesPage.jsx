@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useApp } from '../store.jsx'
 import Modal from '../components/Modal.jsx'
 import { StatusBadge } from '../components/Badge.jsx'
@@ -415,14 +415,33 @@ function EditInquiryModal({ isOpen, onClose, inquiry }) {
 
 // ── Inquiry Card / Row ───────────────────────────────────────────────────────
 function InquiryCard({ inquiry }) {
-  const { state, dispatch } = useApp()
+  const { state, dispatch, activeMember } = useApp()
   const [expanded, setExpanded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [notes, setNotes] = useState(inquiry.notes || '')
   const [editingNotes, setEditingNotes] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
+  const [newComment, setNewComment] = useState('')
+  const [commentAuthor, setCommentAuthor] = useState(activeMember || 'member1')
 
-  const { member1Name, member2Name } = state.settings
+  const { member1Name, member2Name, member3Name } = state.settings
+
+  const comments = (state.inquiryComments || []).filter(c => c.inquiryId === inquiry.id)
+
+  const memberName = (key) => {
+    if (key === 'member1') return member1Name
+    if (key === 'member2') return member2Name
+    if (key === 'member3') return member3Name
+    return key
+  }
+
+  useEffect(() => { if (activeMember) setCommentAuthor(activeMember) }, [activeMember])
+
+  const handleAddComment = () => {
+    if (!newComment.trim()) return
+    dispatch({ type: 'ADD_INQUIRY_COMMENT', payload: { inquiryId: inquiry.id, content: newComment.trim(), author: commentAuthor } })
+    setNewComment('')
+  }
 
   const handleVote = (member, vote) => {
     dispatch({ type: 'VOTE_INQUIRY', payload: { id: inquiry.id, member, vote } })
@@ -681,6 +700,59 @@ function InquiryCard({ inquiry }) {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* Comments */}
+          <div>
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Komentáře ({comments.length})</p>
+            {comments.length > 0 && (
+              <div className="space-y-2 mb-3">
+                {comments.map(c => (
+                  <div key={c.id} className="flex items-start gap-2 group">
+                    <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
+                      {memberName(c.author)[0]}
+                    </div>
+                    <div className="flex-1 bg-gray-50 rounded-xl px-3 py-2 border border-gray-100">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-gray-700">{memberName(c.author)}</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-gray-400">{new Date(c.createdAt).toLocaleDateString('cs-CZ', { day: '2-digit', month: '2-digit' })}</span>
+                          <button
+                            onClick={() => dispatch({ type: 'DELETE_INQUIRY_COMMENT', payload: { id: c.id } })}
+                            className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-all text-xs px-1"
+                            title="Smazat"
+                          >✕</button>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-700 mt-0.5 leading-relaxed">{c.content}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2 items-end">
+              <select
+                value={commentAuthor}
+                onChange={e => setCommentAuthor(e.target.value)}
+                className="input text-xs py-1.5 w-28 flex-shrink-0"
+              >
+                <option value="member1">{member1Name}</option>
+                <option value="member2">{member2Name}</option>
+                <option value="member3">{member3Name}</option>
+              </select>
+              <input
+                className="input text-sm flex-1"
+                placeholder="Přidat komentář..."
+                value={newComment}
+                onChange={e => setNewComment(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddComment() } }}
+              />
+              <button
+                onClick={handleAddComment}
+                disabled={!newComment.trim()}
+                className="btn-primary text-xs py-1.5 px-3 flex-shrink-0 disabled:opacity-40"
+              >Odeslat</button>
             </div>
           </div>
 
