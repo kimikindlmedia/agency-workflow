@@ -73,7 +73,7 @@ function TaskModal({ isOpen, onClose, clientId, task = null }) {
     contentType: task?.contentType || 'other',
     deadline: task?.deadline || '',
     note: task?.note || '',
-    assignee: task?.assignee || '',
+    assignee: Array.isArray(task?.assignee) ? task.assignee : (task?.assignee ? [task.assignee] : []),
   })
   const [errors, setErrors] = useState({})
   const [audioError, setAudioError] = useState('')
@@ -122,7 +122,7 @@ function TaskModal({ isOpen, onClose, clientId, task = null }) {
 
   const handleClose = () => {
     if (!isEdit) {
-      setForm({ title: '', description: '', type: 'text', audioData: null, audioName: null, contentType: 'other', deadline: '', note: '', assignee: '' })
+      setForm({ title: '', description: '', type: 'text', audioData: null, audioName: null, contentType: 'other', deadline: '', note: '', assignee: [] })
     }
     setErrors({})
     setAudioError('')
@@ -281,13 +281,34 @@ function TaskModal({ isOpen, onClose, clientId, task = null }) {
 
         <div className="form-group">
           <label className="label">Přiřadit</label>
-          <select className="input" value={form.assignee} onChange={handleChange('assignee')}>
-            <option value="">— nepřiřazeno —</option>
-            <option value="member1">{state.settings.member1Name}</option>
-            <option value="member2">{state.settings.member2Name}</option>
-            <option value="member3">{state.settings.member3Name}</option>
-            <option value="both">Oba</option>
-          </select>
+          <div className="flex flex-wrap gap-2 mt-1">
+            {[
+              { key: 'member1', name: state.settings.member1Name },
+              { key: 'member2', name: state.settings.member2Name },
+              { key: 'member3', name: state.settings.member3Name },
+            ].map(m => {
+              const active = (form.assignee || []).includes(m.key)
+              return (
+                <button
+                  key={m.key}
+                  type="button"
+                  onClick={() => setForm(f => ({
+                    ...f,
+                    assignee: active
+                      ? f.assignee.filter(x => x !== m.key)
+                      : [...(f.assignee || []), m.key],
+                  }))}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                    active
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-300'
+                  }`}
+                >
+                  {m.name}
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         <div className="form-group">
@@ -721,11 +742,11 @@ function TaskCard({ task, clientId }) {
                   🎙️ Hlasová
                 </span>
               )}
-              {task.assignee && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200">
-                  {task.assignee === 'both' ? 'Oba' : task.assignee === 'member1' ? appState.settings.member1Name : task.assignee === 'member2' ? appState.settings.member2Name : appState.settings.member3Name}
+              {(task.assignee || []).map(mk => (
+                <span key={mk} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200">
+                  {mk === 'member1' ? appState.settings.member1Name : mk === 'member2' ? appState.settings.member2Name : appState.settings.member3Name}
                 </span>
-              )}
+              ))}
             </div>
             <h4 className="font-semibold text-gray-900 mt-1">{task.title}</h4>
             {task.description && !expanded && (

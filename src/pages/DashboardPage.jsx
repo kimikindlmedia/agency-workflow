@@ -77,7 +77,7 @@ export default function DashboardPage({ onNavigate, onSelectClient }) {
     return keys.map((key) => {
       const name = settings?.[`${key}Name`] || key;
       const memberTasks = allTasks.filter(
-        (t) => t.assignee === key || t.assignee === 'both'
+        (t) => (Array.isArray(t.assignee) ? t.assignee : []).includes(key)
       );
       const doneTasks = memberTasks.filter((t) => t.status === 'done');
       const total = memberTasks.length;

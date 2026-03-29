@@ -62,7 +62,7 @@ export default function TeamPage() {
 
   // Group tasks by assignee
   const tasksByMember = (memberKey) =>
-    allTasks.filter(t => t.assignee === memberKey || t.assignee === 'both')
+    allTasks.filter(t => (Array.isArray(t.assignee) ? t.assignee : []).includes(memberKey))
 
   const getMemberStats = (memberKey) => {
     const tasks = tasksByMember(memberKey)

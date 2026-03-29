@@ -40,7 +40,7 @@ function normalizeTask(t) {
     audioName: t.audio_name,
     contentType: t.content_type,
     createdAt: t.created_at,
-    assignee: t.assignee || '',
+    assignee: Array.isArray(t.assignee) ? t.assignee : (t.assignee && t.assignee !== '' ? (t.assignee === 'both' ? ['member1','member2','member3'] : [t.assignee]) : []),
     outputs: [],
   }
 }
@@ -272,7 +272,7 @@ export function AppProvider({ children }) {
           content_type: contentType || 'other',
           deadline: deadline || null,
           note: rest.note || '',
-          assignee: rest.assignee || '',
+          assignee: Array.isArray(rest.assignee) ? rest.assignee : [],
           created_at: new Date().toISOString(),
         }
         const frontendTask = {
@@ -312,7 +312,7 @@ export function AppProvider({ children }) {
         if (updates.note        !== undefined) dbUpdate.note         = updates.note
         if (updates.deadline    !== undefined) dbUpdate.deadline     = updates.deadline
         if (updates.contentType !== undefined) dbUpdate.content_type = updates.contentType
-        if (updates.assignee    !== undefined) dbUpdate.assignee     = updates.assignee
+        if (updates.assignee    !== undefined) dbUpdate.assignee     = Array.isArray(updates.assignee) ? updates.assignee : []
         await supabase.from('tasks').update(dbUpdate).eq('id', taskId)
         break
       }
