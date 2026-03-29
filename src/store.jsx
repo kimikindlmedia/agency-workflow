@@ -8,7 +8,7 @@ function generateId() {
 // ── Normalize DB rows → frontend format ──────────────────────────────────────
 
 function normalizeClient(c) {
-  return { ...c, createdAt: c.created_at, driveUrl: c.drive_url || '', services: c.services || [], photoUrl: c.photo_url || '', tasks: [] }
+  return { ...c, createdAt: c.created_at, driveUrl: c.drive_url || '', services: c.services || [], photoUrl: c.photo_url || '', socialLinks: c.social_links || {}, tasks: [] }
 }
 
 function normalizePost(p) {
@@ -94,7 +94,7 @@ function normalizeInquiryComment(c) {
 }
 
 function normalizeEvent(e) {
-  return { ...e, clientId: e.client_id, createdAt: e.created_at }
+  return { ...e, clientId: e.client_id, createdAt: e.created_at, author: e.author || '' }
 }
 
 // ── Context & Provider ────────────────────────────────────────────────────────
@@ -233,9 +233,10 @@ export function AppProvider({ children }) {
         if (rest.email     !== undefined) dbUpdate.email     = rest.email
         if (rest.phone     !== undefined) dbUpdate.phone     = rest.phone
         if (rest.color     !== undefined) dbUpdate.color     = rest.color
-        if (rest.driveUrl  !== undefined) dbUpdate.drive_url = rest.driveUrl
-        if (rest.services  !== undefined) dbUpdate.services  = rest.services
-        if (rest.photoUrl  !== undefined) dbUpdate.photo_url = rest.photoUrl
+        if (rest.driveUrl     !== undefined) dbUpdate.drive_url    = rest.driveUrl
+        if (rest.services     !== undefined) dbUpdate.services     = rest.services
+        if (rest.photoUrl     !== undefined) dbUpdate.photo_url    = rest.photoUrl
+        if (rest.socialLinks  !== undefined) dbUpdate.social_links = rest.socialLinks
         await supabase.from('clients').update(dbUpdate).eq('id', id)
         break
       }
@@ -565,9 +566,10 @@ export function AppProvider({ children }) {
           type: action.payload.type || 'other',
           client_id: action.payload.clientId || null,
           description: action.payload.description || '',
+          author: action.payload.author || '',
           created_at: new Date().toISOString(),
         }
-        const frontend = { ...row, clientId: row.client_id, createdAt: row.created_at }
+        const frontend = { ...row, clientId: row.client_id, createdAt: row.created_at, author: row.author }
         setState(s => ({ ...s, events: [...s.events, frontend].sort((a,b) => a.date.localeCompare(b.date)) }))
         await supabase.from('events').insert(row)
         break

@@ -38,7 +38,7 @@ const STAGE_BADGE = {
   deal: { label: 'Dohodnutá spolupráce', className: 'bg-green-100 text-green-700' },
 };
 
-export default function DashboardPage() {
+export default function DashboardPage({ onNavigate, onSelectClient }) {
   const { state } = useApp();
   const { clients, inquiries, events, weeklyGoals, settings } = state;
 
@@ -100,6 +100,7 @@ export default function DashboardPage() {
         title: t.title,
         subtitle: t.clientName || '',
         type: 'task',
+        clientId: t.clientId || null,
       }));
 
     const eventItems = (events || [])
@@ -135,7 +136,7 @@ export default function DashboardPage() {
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Aktivní klienti */}
-        <div className="card p-5">
+        <button onClick={() => onNavigate?.('clients')} className="card p-5 text-left hover:shadow-md transition-shadow cursor-pointer">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Aktivní klienti</p>
@@ -148,10 +149,10 @@ export default function DashboardPage() {
               </svg>
             </div>
           </div>
-        </div>
+        </button>
 
         {/* Aktivní úkoly */}
-        <div className="card p-5">
+        <button onClick={() => onNavigate?.('team')} className="card p-5 text-left hover:shadow-md transition-shadow cursor-pointer">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Aktivní úkoly</p>
@@ -164,10 +165,10 @@ export default function DashboardPage() {
               </svg>
             </div>
           </div>
-        </div>
+        </button>
 
         {/* Deadliny (14 dní) */}
-        <div className="card p-5">
+        <button onClick={() => onNavigate?.('calendar')} className="card p-5 text-left hover:shadow-md transition-shadow cursor-pointer">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Deadliny (14 dní)</p>
@@ -180,10 +181,10 @@ export default function DashboardPage() {
               </svg>
             </div>
           </div>
-        </div>
+        </button>
 
         {/* Čeká na rozhodnutí */}
-        <div className="card p-5">
+        <button onClick={() => onNavigate?.('inquiries')} className="card p-5 text-left hover:shadow-md transition-shadow cursor-pointer">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Čeká na rozhodnutí</p>
@@ -196,7 +197,7 @@ export default function DashboardPage() {
               </svg>
             </div>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* 2-column grid */}
@@ -242,7 +243,11 @@ export default function DashboardPage() {
           ) : (
             <ul className="space-y-3">
               {upcomingItems.map((item, idx) => (
-                <li key={idx} className="flex items-center gap-3">
+                <li
+                  key={idx}
+                  onClick={() => item.type === 'task' && item.clientId ? (onNavigate?.('clients'), onSelectClient?.(item.clientId)) : onNavigate?.(item.type === 'task' ? 'clients' : 'calendar')}
+                  className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-lg px-2 py-1 -mx-2 transition-colors"
+                >
                   <div className="flex-shrink-0 text-center w-10">
                     <span className="block text-xl font-bold text-gray-900 leading-none">
                       {item.date.getDate()}
@@ -281,7 +286,7 @@ export default function DashboardPage() {
             {recentInquiries.map((inq, idx) => {
               const badge = STAGE_BADGE[inq.stage] || { label: inq.stage, className: 'bg-gray-100 text-gray-600' };
               return (
-                <li key={idx} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                <li key={idx} onClick={() => onNavigate?.('inquiries')} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0 cursor-pointer hover:bg-gray-50 rounded-lg px-2 -mx-2 transition-colors">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 truncate">{inq.clientName}</p>
                     <p className="text-xs text-gray-500 truncate mt-0.5">{inq.description}</p>

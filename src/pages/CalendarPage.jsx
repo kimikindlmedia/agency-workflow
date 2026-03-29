@@ -18,7 +18,7 @@ function EventTypeBadge({ type }) {
 }
 
 function AddEventModal({ isOpen, onClose, prefillDate = '' }) {
-  const { state, dispatch } = useApp()
+  const { state, dispatch, activeMember } = useApp()
   const [form, setForm] = useState({ title: '', date: prefillDate, type: 'other', clientId: '', description: '' })
   const [errors, setErrors] = useState({})
 
@@ -33,7 +33,7 @@ function AddEventModal({ isOpen, onClose, prefillDate = '' }) {
     if (!form.title.trim()) errs.title = 'Název je povinný'
     if (!form.date) errs.date = 'Datum je povinné'
     if (Object.keys(errs).length > 0) { setErrors(errs); return }
-    dispatch({ type: 'ADD_EVENT', payload: form })
+    dispatch({ type: 'ADD_EVENT', payload: { ...form, author: activeMember || '' } })
     setForm({ title: '', date: '', type: 'other', clientId: '', description: '' })
     setErrors({})
     onClose()
@@ -87,7 +87,13 @@ function AddEventModal({ isOpen, onClose, prefillDate = '' }) {
 }
 
 export default function CalendarPage() {
-  const { state, dispatch } = useApp()
+  const { state, dispatch, activeMember } = useApp()
+  const getMemberName = (key) => {
+    if (key === 'member1') return state.settings.member1Name
+    if (key === 'member2') return state.settings.member2Name
+    if (key === 'member3') return state.settings.member3Name
+    return key
+  }
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth()) // 0-indexed
@@ -266,7 +272,7 @@ export default function CalendarPage() {
                       <div className="flex items-start gap-2">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-gray-900 truncate">{ev.title}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">{formatEventDate(ev.date)}{clientName ? ` · ${clientName}` : ''}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{formatEventDate(ev.date)}{clientName ? ` · ${clientName}` : ''}{ev.author ? ` · ${getMemberName(ev.author)}` : ''}</p>
                         </div>
                         <EventTypeBadge type={ev.type} />
                       </div>

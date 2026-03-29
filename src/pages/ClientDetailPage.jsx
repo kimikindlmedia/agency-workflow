@@ -479,6 +479,8 @@ function EditClientModal({ isOpen, onClose, client }) {
     color: client.color,
     driveUrl: client.driveUrl || '',
     photoUrl: client.photoUrl || '',
+    services: client.services || [],
+    socialLinks: { instagram: '', tiktok: '', facebook: '', youtube: '', web: '', ...(client.socialLinks || {}) },
   })
   const [errors, setErrors] = useState({})
 
@@ -487,10 +489,21 @@ function EditClientModal({ isOpen, onClose, client }) {
     if (errors[field]) setErrors(er => ({ ...er, [field]: '' }))
   }
 
+  const handleSocialChange = (platform) => (e) => {
+    setForm(f => ({ ...f, socialLinks: { ...f.socialLinks, [platform]: e.target.value } }))
+  }
+
+  const toggleService = (s) => {
+    setForm(f => ({
+      ...f,
+      services: f.services.includes(s) ? f.services.filter(x => x !== s) : [...f.services, s],
+    }))
+  }
+
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!form.name.trim()) { setErrors({ name: 'Jméno je povinné' }); return }
-    dispatch({ type: 'UPDATE_CLIENT', payload: { id: client.id, ...form, driveUrl: form.driveUrl, photoUrl: form.photoUrl } })
+    dispatch({ type: 'UPDATE_CLIENT', payload: { id: client.id, ...form } })
     onClose()
   }
 
@@ -548,6 +561,48 @@ function EditClientModal({ isOpen, onClose, client }) {
             </label>
           </div>
           <p className="text-xs text-gray-400 mt-1">Vložte URL z Instagramu nebo nahrajte foto</p>
+        </div>
+        <div className="form-group">
+          <label className="label">Sociální sítě</label>
+          <div className="space-y-2 mt-1">
+            {[
+              { key: 'instagram', label: 'Instagram', placeholder: 'https://instagram.com/...' },
+              { key: 'tiktok',    label: 'TikTok',    placeholder: 'https://tiktok.com/...' },
+              { key: 'facebook',  label: 'Facebook',  placeholder: 'https://facebook.com/...' },
+              { key: 'youtube',   label: 'YouTube',   placeholder: 'https://youtube.com/...' },
+              { key: 'web',       label: 'Web',       placeholder: 'https://...' },
+            ].map(p => (
+              <div key={p.key} className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 w-20 flex-shrink-0">{p.label}</span>
+                <input
+                  className="input flex-1 text-sm"
+                  type="url"
+                  placeholder={p.placeholder}
+                  value={form.socialLinks[p.key] || ''}
+                  onChange={handleSocialChange(p.key)}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="form-group">
+          <label className="label">Služby</label>
+          <div className="flex flex-wrap gap-1.5 mt-1">
+            {ALL_SERVICES.map(s => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => toggleService(s)}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  form.services.includes(s)
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white text-gray-500 border-gray-300 hover:border-indigo-300'
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="form-group">
           <label className="label">Barva avatara</label>
@@ -1045,29 +1100,51 @@ export default function ClientDetailPage({ clientId, onBack }) {
                 </a>
               )}
             </div>
-            {/* Services */}
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {ALL_SERVICES.map(s => {
-                const active = (client.services || []).includes(s)
-                return (
-                  <button
-                    key={s}
-                    onClick={() => {
-                      const current = client.services || []
-                      const updated = active ? current.filter(x => x !== s) : [...current, s]
-                      dispatch({ type: 'UPDATE_CLIENT', payload: { id: clientId, services: updated } })
-                    }}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                      active
-                        ? 'bg-indigo-600 text-white border-indigo-600'
-                        : 'bg-white text-gray-500 border-gray-300 hover:border-indigo-300'
-                    }`}
-                  >
+            {/* Services (read-only — upravit v Editaci) */}
+            {(client.services || []).length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {(client.services || []).map(s => (
+                  <span key={s} className="px-2.5 py-1 rounded-full text-xs font-medium border bg-indigo-600 text-white border-indigo-600">
                     {s}
-                  </button>
-                )
-              })}
-            </div>
+                  </span>
+                ))}
+              </div>
+            )}
+            {/* Social links */}
+            {client.socialLinks && Object.values(client.socialLinks).some(Boolean) && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {client.socialLinks.instagram && (
+                  <a href={client.socialLinks.instagram} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-gray-500 hover:text-pink-600 transition-colors px-2 py-1 rounded-lg border border-gray-200 hover:border-pink-300 hover:bg-pink-50">
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                    Instagram
+                  </a>
+                )}
+                {client.socialLinks.tiktok && (
+                  <a href={client.socialLinks.tiktok} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 transition-colors px-2 py-1 rounded-lg border border-gray-200 hover:border-gray-400 hover:bg-gray-50">
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.79 1.54V6.78a4.85 4.85 0 01-1.02-.09z"/></svg>
+                    TikTok
+                  </a>
+                )}
+                {client.socialLinks.facebook && (
+                  <a href={client.socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-gray-500 hover:text-blue-600 transition-colors px-2 py-1 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50">
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                    Facebook
+                  </a>
+                )}
+                {client.socialLinks.youtube && (
+                  <a href={client.socialLinks.youtube} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-600 transition-colors px-2 py-1 rounded-lg border border-gray-200 hover:border-red-300 hover:bg-red-50">
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M23.495 6.205a3.007 3.007 0 00-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 00.527 6.205a31.247 31.247 0 00-.522 5.805 31.247 31.247 0 00.522 5.783 3.007 3.007 0 002.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 002.088-2.088 31.247 31.247 0 00.5-5.783 31.247 31.247 0 00-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/></svg>
+                    YouTube
+                  </a>
+                )}
+                {client.socialLinks.web && (
+                  <a href={client.socialLinks.web} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-gray-500 hover:text-indigo-600 transition-colors px-2 py-1 rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50">
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
+                    Web
+                  </a>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
             <button

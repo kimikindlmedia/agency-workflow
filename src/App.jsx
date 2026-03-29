@@ -180,7 +180,7 @@ function AppContent() {
   }
 
   const renderContent = () => {
-    if (activeTab === 'dashboard') return <DashboardPage />
+    if (activeTab === 'dashboard') return <DashboardPage onNavigate={setActiveTab} onSelectClient={(id) => { setSelectedClientId(id); setActiveTab('clients') }} />
     if (activeTab === 'clients') {
       if (selectedClientId) {
         return (
